@@ -18,6 +18,8 @@ const S = {
   chat: [],                // [{rol:'usuario'|'bot', texto}]
   admin: { usuarios: [], modulos: [], sectores: [], tab: 'personas' },
   instalarEvt: null,
+  lectorToken: localStorage.getItem('ingeco_lector') || '',
+  com: { catalogo: null, lista: null },
   timer: null
 };
 
@@ -64,15 +66,16 @@ function confirmar(titulo, texto, textoBoton, peligro) {
   });
 }
 
-const VISTAS = ['login', 'inicio', 'modulo', 'bandeja', 'ayuda', 'admin'];
+const VISTAS = ['login', 'inicio', 'modulo', 'bandeja', 'ayuda', 'admin', 'avisos', 'lector'];
 function mostrarVista(v) {
-  const enApp = ['inicio', 'modulo', 'bandeja', 'ayuda', 'admin'].includes(v);
+  const enApp = ['inicio', 'modulo', 'bandeja', 'ayuda', 'admin', 'avisos', 'lector'].includes(v);
   $('app').hidden = !enApp;
   VISTAS.forEach(x => { $('v-' + x).hidden = x !== v; });
   $('btn-volver').hidden = v === 'inicio';
   $('btn-consultar').hidden = true;
   if (v !== 'modulo') { $('modulo-frame').src = 'about:blank'; S.moduloActual = null; }
-  const titulos = { inicio: 'INGECO', bandeja: 'Avisos', ayuda: 'Ayuda', admin: 'Administración' };
+  const titulos = { inicio: 'INGECO', bandeja: 'Avisos', ayuda: 'Ayuda', admin: 'Administración', avisos: 'Enviar avisos', lector: 'Avisos INGECO' };
+  if (v === 'lector') { $('btn-volver').hidden = true; $('btn-ayuda').hidden = true; $('btn-campana').hidden = true; } else { $('btn-ayuda').hidden = false; $('btn-campana').hidden = false; }
   if (titulos[v]) $('barra-titulo').textContent = titulos[v];
   if (v === 'login') { $('login-error').textContent = ''; iniciarGoogle(); }
   window.scrollTo(0, 0);
@@ -81,13 +84,15 @@ function mostrarVista(v) {
 // ───────────────────────── Router por hash ─────────────────────────
 function irA(hash) { if (location.hash !== hash) location.hash = hash; else enrutar(); }
 function enrutar() {
-  if (!S.token || !S.perfil) return;
   const [ruta, arg] = location.hash.replace(/^#/, '').split('/');
+  if (ruta === 'ver') { if (arg) { S.lectorToken = arg; localStorage.setItem('ingeco_lector', arg); } verLector(); return; }
+  if (!S.token || !S.perfil) { if (S.lectorToken) verLector(); return; }
   switch (ruta) {
     case 'modulo': abrirModulo(decodeURIComponent(arg || '')); break;
     case 'bandeja': verBandeja(); break;
     case 'ayuda': verAyuda(arg ? decodeURIComponent(arg) : (S.moduloActual && S.moduloActual.codigo)); break;
     case 'admin': if (S.perfil.es_admin) verAdmin(); else irA('#inicio'); break;
+    case 'avisos': verAvisos(arg ? decodeURIComponent(arg) : null); break;
     default: verInicio();
   }
 }
@@ -156,7 +161,8 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 async function refrescar(silencioso) {
   const [p, b] = await Promise.all([api('perfil', {}, { silencioso: true }), api('bandeja', { limite: 100 }, { silencioso: true })]);
   if (p.ok) guardarPerfil(p);
-  if (b.ok) { S.avisos = b.avisos; S.sinLeer = b.sin_leer || {}; S.totalSinLeer = b.total_sin_leer || 0; }
+  if (b.ok) { S.avisos = b.avisos; S.sinLeer = b.sin_leer || {}; S.totalSinLeer = b.total_sin_leer || 0; try { localStorage.setItem('ingeco_bandeja', JSON.stringify({ avisos: S.avisos, sinLeer: S.sinLeer, total: S.totalSinLeer })); } catch (e) { } }
+  else if (b.offline && !S.avisos.length) { try { const c = JSON.parse(localStorage.getItem('ingeco_bandeja') || 'null'); if (c) { S.avisos = c.avisos; S.sinLeer = c.sinLeer; S.totalSinLeer = c.total; } } catch (e) { } }
   pintarCampana();
   if (!$('v-inicio').hidden) verInicio();
   if (!$('v-bandeja').hidden) verBandeja();
@@ -184,7 +190,9 @@ function verInicio() {
   $('sin-modulos').hidden = mods.length > 0;
   $('tarjetas').querySelectorAll('.tarjeta').forEach(t => t.onclick = () => {
     const m = p.modulos.find(x => x.codigo === t.dataset.cod);
-    if (m.codigo === 'ADMIN' || m.tipo === 'interno') return irA('#admin');
+    if (m.codigo === 'ADMIN') return irA('#admin');
+    if (m.codigo === 'AVISOS') return irA('#avisos');
+    if (m.tipo === 'interno') return irA(m.url || '#inicio');
     irA('#modulo/' + encodeURIComponent(m.codigo));
   });
   $('banner-instalar').hidden = !(S.instalarEvt || esIosSinInstalar()) || localStorage.getItem('ingeco_instalar_cerrado') === '1';
@@ -388,7 +396,7 @@ async function verAdmin() {
   mostrarVista('admin');
   const r = await api('admin_usuarios');
   if (!r.ok) return toast(r.error, 'mal');
-  S.admin.usuarios = r.usuarios; S.admin.modulos = r.modulos; S.admin.sectores = r.sectores;
+  S.admin.usuarios = r.usuarios; S.admin.modulos = r.modulos; S.admin.sectores = r.sectores; S.admin.areas = r.areas || []; S.admin.obras = r.obras || [];
   const d = r.diagnostico;
   $('admin-diag').hidden = d.ok;
   if (!d.ok) $('admin-diag').innerHTML = '<b>Revisar la planilla:</b> ' + d.problemas.map(p => esc(p.hoja + ': ' + p.problema)).join(' · ');
@@ -397,8 +405,8 @@ async function verAdmin() {
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { S.admin.tab = b.dataset.tab; pintarTabAdmin(); });
 function pintarTabAdmin() {
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('activa', b.dataset.tab === S.admin.tab));
-  ['personas', 'modulos', 'instructivos', 'bot', 'aviso'].forEach(t => $('tab-' + t).hidden = t !== S.admin.tab);
-  ({ personas: pintarGrilla, modulos: pintarModulosAdmin, instructivos: pintarInstructivos, bot: pintarBot, aviso: pintarFormAviso })[S.admin.tab]();
+  ['personas', 'modulos', 'instructivos', 'areas', 'bot', 'aviso'].forEach(t => $('tab-' + t).hidden = t !== S.admin.tab);
+  ({ personas: pintarGrilla, modulos: pintarModulosAdmin, instructivos: pintarInstructivos, areas: pintarAreas, bot: pintarBot, aviso: pintarFormAviso })[S.admin.tab]();
 }
 
 // — Personas: grilla legajo × módulo —
@@ -407,7 +415,7 @@ function pintarGrilla() {
   const mods = S.admin.modulos;
   const us = S.admin.usuarios.filter(u => !q || String(u.nombre_visible).toLowerCase().includes(q) || String(u.sector).toLowerCase().includes(q));
   $('admin-grilla').innerHTML = `<table class="grilla"><thead><tr><th>Persona</th>${mods.map(m => `<th title="${esc(m.nombre)}">${esc(m.icono)}<br>${esc(m.codigo)}</th>`).join('')}</tr></thead><tbody>
-    ${us.map(u => `<tr class="${u.activo ? '' : 'inactivo'}"><td><button class="nombre-btn" data-ficha="${esc(u.legajo)}">${esc(u.nombre_visible)}</button><br><small>${esc(u.sector || '')}${u.ultimo_ingreso ? '' : ' · nunca entró'}</small></td>
+    ${us.map(u => `<tr class="${u.activo ? '' : 'inactivo'}"><td><button class="nombre-btn" data-ficha="${esc(u.legajo)}">${esc(u.nombre_visible)}</button><br><small>${u.tipo === 'lector' ? '🔗 ' : ''}${esc((u.areas || []).join(', ') || u.sector || '')}${u.ultimo_ingreso ? '' : ' · nunca entró'}</small></td>
       ${mods.map(m => { const p = u.modulos.find(x => x.modulo === m.codigo); return `<td><input type="checkbox" data-legajo="${esc(u.legajo)}" data-mod="${esc(m.codigo)}" ${p ? 'checked' : ''} ${u.activo ? '' : 'disabled'} title="${p ? esc(p.rol) : ''}"></td>`; }).join('')}</tr>`).join('')}
   </tbody></table>`;
   $('admin-grilla').querySelectorAll('input[type=checkbox]').forEach(c => c.onchange = async () => {
@@ -437,6 +445,8 @@ $('btn-nueva-persona').onclick = () => {
     <label class="campo"><span>Email de INGECO</span><input id="a-email" type="email" required placeholder="nombre@grupoingeco.com.ar" autocapitalize="none"></label>
     <label class="campo"><span>Sector</span>${selectSector('a-sector')}</label>
     <label class="campo"><span>Celular (con característica, sin 0 ni 15)</span><input id="a-celular" type="tel" inputmode="numeric" placeholder="3815551234"></label>
+    <div class="campo"><span>Áreas</span><div class="chips" id="a-areas">${chipsAreas([])}</div></div>
+    <label class="campo"><span>Obra actual</span>${selectObra('a-obra', '')}</label>
     <div class="campo"><span>Módulos</span><div class="chips">${S.admin.modulos.map(m => `<label><input type="checkbox" value="${esc(m.codigo)}">${esc(m.icono)} ${esc(m.nombre)}</label>`).join('')}</div></div>
     <div class="modal-acciones"><button type="button" class="secundario" id="a-cancelar">Cancelar</button><button type="submit" class="primario">Crear acceso</button></div></form>`,
     c => {
@@ -446,7 +456,8 @@ $('btn-nueva-persona').onclick = () => {
         e.preventDefault();
         const r = await api('admin_alta', {
           nombre: c.querySelector('#a-nombre').value, email: c.querySelector('#a-email').value, sector: c.querySelector('#a-sector').value,
-          celular: c.querySelector('#a-celular').value, modulos: [...c.querySelectorAll('.chips input:checked')].map(i => i.value)
+          celular: c.querySelector('#a-celular').value, modulos: [...c.querySelectorAll('.chips:not(#a-areas) input:checked')].map(i => i.value),
+          areas: [...c.querySelectorAll('#a-areas input:checked')].map(i => i.value), obra: c.querySelector('#a-obra').value
         });
         if (!r.ok) return toast(r.error, 'mal');
         mostrarAcceso(r.nombre_visible, r.email, r.wa_link);
@@ -468,9 +479,13 @@ async function verFicha(legajo) {
     <form id="f-ficha" class="form">
       <label class="campo"><span>Sector</span>${selectSector('f-sector', u.sector)}</label>
       <label class="campo"><span>Celular</span><input id="f-celular" type="tel" inputmode="numeric" value="${esc(u.celular)}"></label>
-      <label class="campo"><span>Email de INGECO</span><input id="f-email" type="email" value="${esc(u.email || '')}" autocapitalize="none"></label>
+      ${u.tipo === 'lector' ? '' : `<label class="campo"><span>Email de INGECO</span><input id="f-email" type="email" value="${esc(u.email || '')}" autocapitalize="none"></label>`}
+      <div class="campo"><span>Áreas</span><div class="chips" id="f-areas">${chipsAreas(u.areas || [])}</div></div>
+      <label class="campo"><span>Obra actual</span>${selectObra('f-obra', u.obra || '')}</label>
+      ${u.tipo === 'lector' ? '' : `<label class="campo"><span>Rol para enviar avisos</span><select id="f-rol-avisos"><option value="">No envía</option><option value="EMISOR" ${u.rol_avisos === 'EMISOR' ? 'selected' : ''}>Emisor (sus áreas)</option><option value="EMISOR_GLOBAL" ${u.rol_avisos === 'EMISOR_GLOBAL' ? 'selected' : ''}>Emisor global (toda la empresa)</option><option value="APROBADOR" ${u.rol_avisos === 'APROBADOR' ? 'selected' : ''}>Aprobador</option></select></label>`}
       <button type="submit" class="primario">Guardar cambios</button>
     </form>
+    ${u.tipo === 'lector' ? `<p><b>Acceso por link personal</b> ${u.link_lector ? '(activo)' : '(revocado)'}</p><div class="modal-acciones">${u.wa_link && u.link_lector ? `<a class="secundario" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="${esc(u.wa_link)}" target="_blank" rel="noopener">Reenviar link</a>` : ''}<button class="secundario" id="f-nuevo-link">Link nuevo</button>${u.link_lector ? '<button class="peligro" id="f-revocar">Revocar</button>' : ''}</div>` : ''}
     <p><b>Módulos:</b> ${r.modulos.map(m => `<span class="chip">${esc(m.icono)} ${esc(m.nombre)} · ${esc(m.rol)}</span>`).join('') || 'ninguno'}</p>
     <p><b>Sesiones activas (${r.sesiones.length}):</b><br>${r.sesiones.map(s => `<small>${esc(s.dispositivo || 'dispositivo')} · último uso ${s.ultimo_uso ? new Date(s.ultimo_uso).toLocaleDateString('es-AR') : '-'}</small>`).join('<br>') || '<small>ninguna</small>'}</p>
     <p><small>Celulares con avisos push: ${r.suscripciones}</small></p>
@@ -481,8 +496,25 @@ async function verFicha(legajo) {
       c.querySelector('#f-cerrar').onclick = cerrarModal;
       c.querySelector('#f-ficha').onsubmit = async e => {
         e.preventDefault();
-        const x = await api('admin_editar', { legajo, sector: c.querySelector('#f-sector').value, celular: c.querySelector('#f-celular').value, email: c.querySelector('#f-email').value });
-        if (x.ok) { toast('Guardado', 'ok'); cerrarModal(); verAdmin(); } else toast(x.error, 'mal');
+        const datos = { legajo, sector: c.querySelector('#f-sector').value, celular: c.querySelector('#f-celular').value, areas: [...c.querySelectorAll('#f-areas input:checked')].map(i => i.value), obra: c.querySelector('#f-obra').value };
+        if (c.querySelector('#f-email')) datos.email = c.querySelector('#f-email').value;
+        const x = await api('admin_editar', datos);
+        if (!x.ok) return toast(x.error, 'mal');
+        const selRol = c.querySelector('#f-rol-avisos');
+        if (selRol && selRol.value !== (u.rol_avisos || '')) {
+          const y = await api('admin_set_permiso', { legajo, modulo: 'AVISOS', rol: selRol.value, activo: !!selRol.value });
+          if (!y.ok) return toast(y.error, 'mal');
+        }
+        toast('Guardado', 'ok'); cerrarModal(); verAdmin();
+      };
+      const bl = c.querySelector('#f-nuevo-link'); if (bl) bl.onclick = async () => {
+        if (!await confirmar('Link nuevo', 'El link anterior deja de funcionar. Hay que mandarle el nuevo.', 'Generar')) return;
+        const x = await api('admin_link_lector', { legajo }); if (!x.ok) return toast(x.error, 'mal');
+        mostrarLink(u.nombre_visible, x.link, x.wa_link);
+      };
+      const br = c.querySelector('#f-revocar'); if (br) br.onclick = async () => {
+        if (!await confirmar('Revocar acceso', 'Deja de ver avisos y de recibir push hasta que le generes un link nuevo.', 'Revocar', true)) return;
+        const x = await api('admin_revocar_lector', { legajo }); toast(x.ok ? 'Revocado' : x.error, x.ok ? 'ok' : 'mal'); cerrarModal(); verAdmin();
       };
       c.querySelector('#f-sesiones').onclick = async () => {
         if (!await confirmar('Cerrar sesiones', 'Va a tener que volver a entrar con nombre y PIN en todos sus celulares.', 'Cerrar sesiones')) return;
@@ -511,6 +543,63 @@ $('btn-importar').onclick = () => {
           <div class="modal-acciones"><button class="primario" id="imp-cerrar">Listo</button></div>`, cc => cc.querySelector('#imp-cerrar').onclick = () => { cerrarModal(); verAdmin(); });
       };
     });
+};
+
+function chipsAreas(sel) {
+  return (S.admin.areas || []).map(a => `<label><input type="checkbox" value="${esc(a.codigo)}" ${sel.indexOf(a.codigo) >= 0 ? 'checked' : ''}>${esc(a.nombre)}</label>`).join('') || '<small>Sin áreas: cargalas en la pestaña "Áreas y obras"</small>';
+}
+function selectObra(id, valor) {
+  return `<select id="${id}"><option value="">Sin obra</option>${(S.admin.obras || []).map(o => `<option value="${esc(o.codigo)}" ${o.codigo === valor ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('')}</select>`;
+}
+function mostrarLink(nombre, link, waLink) {
+  modal(`<h3>Acceso para ${esc(nombre)}</h3><p>Link personal (solo lectura de avisos, sin cuenta):</p><p style="word-break:break-all"><a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a></p>
+    <div class="modal-acciones">${waLink ? `<a class="primario" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="${esc(waLink)}" target="_blank" rel="noopener">Enviar por WhatsApp</a>` : ''}<button class="secundario" id="l-cerrar">Cerrar</button></div>`,
+    c => c.querySelector('#l-cerrar').onclick = cerrarModal);
+}
+$('btn-nuevo-lector').onclick = () => {
+  modal(`<h3>Persona sin cuenta (solo lee avisos)</h3><form id="f-lector" class="form">
+    <label class="campo"><span>Nombre y apellido</span><input id="l-nombre" required autocapitalize="words"></label>
+    <label class="campo"><span>Celular (para mandarle el link)</span><input id="l-celular" type="tel" inputmode="numeric" placeholder="3815551234"></label>
+    <div class="campo"><span>Áreas</span><div class="chips" id="l-areas">${chipsAreas([])}</div></div>
+    <label class="campo"><span>Obra actual</span>${selectObra('l-obra', '')}</label>
+    <div class="modal-acciones"><button type="button" class="secundario" id="l-cancelar">Cancelar</button><button type="submit" class="primario">Crear link</button></div></form>`,
+    c => {
+      c.querySelector('#l-cancelar').onclick = cerrarModal;
+      c.querySelector('#f-lector').onsubmit = async e => {
+        e.preventDefault();
+        const r = await api('admin_alta_lector', { nombre: c.querySelector('#l-nombre').value, celular: c.querySelector('#l-celular').value, areas: [...c.querySelectorAll('#l-areas input:checked')].map(i => i.value), obra: c.querySelector('#l-obra').value });
+        if (!r.ok) return toast(r.error, 'mal');
+        mostrarLink(r.nombre_visible, r.link, r.wa_link); verAdmin();
+      };
+    });
+};
+$('btn-exportar').onclick = async () => {
+  const anio = prompt('¿Qué año exportar?', String(new Date().getFullYear())); if (!anio) return;
+  const r = await api('admin_exportar', { anio }); if (!r.ok) return toast(r.error, 'mal');
+  modal(`<h3>Exportación lista</h3><p>Se creó una planilla en tu Drive con los avisos y comunicados de ${esc(anio)}.</p><div class="modal-acciones"><a class="primario" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="${esc(r.url)}" target="_blank" rel="noopener">Abrir planilla</a><button class="secundario" id="x-cerrar">Cerrar</button></div>`, c => c.querySelector('#x-cerrar').onclick = cerrarModal);
+};
+
+// — Áreas y obras —
+function pintarAreas() {
+  $('admin-areas').innerHTML = (S.admin.areas || []).map(a => `<div class="item"><div class="t">${esc(a.nombre)} <small>(${esc(a.codigo)} · ${S.admin.usuarios.filter(u => u.activo && (u.areas || []).indexOf(a.codigo) >= 0).length} personas)</small></div>
+    <div class="acciones"><button class="chico" data-area-off="${esc(a.codigo)}">Desactivar</button></div></div>`).join('') || '<p class="vacio">Sin áreas todavía.</p>';
+  $('admin-areas').querySelectorAll('[data-area-off]').forEach(b => b.onclick = async () => {
+    if (!await confirmar('Desactivar área', 'Deja de aparecer para elegir destinatarios. Las personas conservan la etiqueta.', 'Desactivar')) return;
+    const a = S.admin.areas.find(x => x.codigo === b.dataset.areaOff);
+    await api('admin_guardar_area', { codigo: a.codigo, nombre: a.nombre, orden: a.orden, activo: false }); verAdmin();
+  });
+  $('admin-obras').innerHTML = (S.admin.obras || []).map(o => `<span class="chip">${esc(o.nombre)}</span>`).join('') || '<small>Sin obras cargadas.</small>';
+}
+$('btn-area').onclick = async () => {
+  const nombre = $('area-nueva').value.trim(); if (!nombre) return;
+  const r = await api('admin_guardar_area', { nombre, orden: (S.admin.areas || []).length + 1 });
+  if (!r.ok) return toast(r.error, 'mal');
+  $('area-nueva').value = ''; toast('Área creada', 'ok'); verAdmin();
+};
+$('btn-obras').onclick = async () => {
+  const texto = $('obras-texto').value.trim(); if (!texto) return;
+  const r = await api('admin_guardar_obras', { texto }); if (!r.ok) return toast(r.error, 'mal');
+  $('obras-texto').value = ''; toast(r.procesadas + ' obras procesadas (' + r.nuevas + ' nuevas)', 'ok'); verAdmin();
 };
 
 // — Módulos —
@@ -620,13 +709,154 @@ $('form-aviso').onsubmit = async e => {
   $('form-aviso').reset(); cambiarDestino();
 };
 
+// ───────────────────────── Enviar avisos (comunicados) ─────────────────────────
+const fechaHora = f => f ? new Date(f).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+const ESTADO_TXT = { pendiente: 'Pendiente de aprobación', programado: 'Programado', enviado: 'Enviado', rechazado: 'Rechazado' };
+
+async function verAvisos(id) {
+  mostrarVista('avisos');
+  if (id) return verDetalleCom(id);
+  $('com-detalle').hidden = true; $('avisos-lista-wrap').hidden = false;
+  const r = await api('com_listar'); if (!r.ok) { toast(r.error, 'mal'); return irA('#inicio'); }
+  S.com.lista = r;
+  const tarjeta = c => `<div class="item" data-com="${esc(c.id)}"><div class="t">${c.prioridad === 'critica' ? '⚠️ ' : ''}${esc(c.titulo)} <span class="estado ${esc(c.estado)}">${ESTADO_TXT[c.estado] || c.estado}</span></div>
+    <div class="d">${esc(c.cuerpo).slice(0, 140)}${c.cuerpo.length > 140 ? '…' : ''}</div>
+    ${c.estado === 'enviado' ? `<div class="barra-lectura"><i style="width:${c.total ? Math.round(100 * c.leidos / c.total) : 0}%"></i></div><small>${c.leidos} de ${c.total} leyeron</small>` : `<small>${c.estado === 'programado' ? 'Sale ' + fechaHora(c.programado_para) + ' · ' : ''}${c.total} destinatarios</small>`}
+    <small> · ${esc(c.emisor)} · ${fechaHora(c.fecha)}</small></div>`;
+  $('com-pendientes-wrap').hidden = !r.pendientes.length; $('com-pendientes').innerHTML = r.pendientes.map(tarjeta).join('');
+  $('com-mios').innerHTML = r.mios.map(tarjeta).join('') || '<p class="vacio">Todavía no enviaste avisos.</p>';
+  $('com-otros-wrap').hidden = !r.otros.length; $('com-otros').innerHTML = r.otros.map(tarjeta).join('');
+  document.querySelectorAll('[data-com]').forEach(el => el.onclick = () => irA('#avisos/' + encodeURIComponent(el.dataset.com)));
+}
+
+async function verDetalleCom(id) {
+  const r = await api('com_detalle', { id }); if (!r.ok) { toast(r.error, 'mal'); return irA('#avisos'); }
+  $('avisos-lista-wrap').hidden = true; $('com-detalle').hidden = false;
+  const rol = S.com.lista ? S.com.lista.rol : null;
+  const esAprobador = rol === 'APROBADOR' || S.perfil.es_admin;
+  const lista = (arr, conFecha) => arr.length ? '<ul>' + arr.map(p => `<li>${esc(p.nombre)}${conFecha && p.fecha ? ' <small>' + fechaHora(p.fecha) + '</small>' : ''}</li>`).join('') + '</ul>' : '<small>nadie</small>';
+  $('com-detalle').innerHTML = `<button class="enlace" style="margin:0 0 8px;text-align:left" id="com-volver">‹ Volver a la lista</button>
+    <div class="item"><div class="t">${r.prioridad === 'critica' ? '⚠️ ' : ''}${esc(r.titulo)} <span class="estado ${esc(r.estado)}">${ESTADO_TXT[r.estado] || r.estado}</span></div>
+      <div class="d">${esc(r.cuerpo)}</div>
+      ${r.url ? `<p><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.url)}</a></p>` : ''}
+      ${r.adjunto_url ? `<p>📎 <a href="${esc(r.adjunto_url)}" target="_blank" rel="noopener">${esc(r.adjunto_nombre)}</a></p>` : ''}
+      <small>De ${esc(r.emisor)} · ${fechaHora(r.fecha)}${r.programado_para ? ' · programado ' + fechaHora(r.programado_para) : ''}${r.fecha_envio ? ' · enviado ' + fechaHora(r.fecha_envio) : ''}${r.aprobado_por ? ' · ' + (r.estado === 'rechazado' ? 'rechazado' : 'aprobado') + ' por ' + esc(r.aprobado_por) : ''}</small>
+      ${r.motivo_rechazo ? `<p class="error" style="text-align:left">Motivo: ${esc(r.motivo_rechazo)}</p>` : ''}
+    </div>
+    ${r.estado === 'enviado' ? `<div class="barra-lectura"><i style="width:${r.total ? Math.round(100 * r.leidos / r.total) : 0}%"></i></div><p><b>${r.leidos} de ${r.total}</b> leyeron${r.reenvios ? ' · reenviado ' + r.reenvios + ' vez' + (r.reenvios > 1 ? 'es' : '') : ''}</p>
+      <div class="dos-col"><div><h4>Leyeron</h4>${lista(r.leyeron, true)}</div><div><h4>No leyeron</h4>${lista(r.no_leyeron)}</div></div>
+      ${r.no_leyeron.length ? '<div class="modal-acciones"><button class="primario" id="com-reenviar">Reenviar a los que no leyeron</button></div>' : ''}`
+    : `<h4>Destinatarios (${(r.destinatarios_previstos || []).length})</h4>${lista(r.destinatarios_previstos || [])}
+      ${r.estado === 'pendiente' && esAprobador ? '<div class="modal-acciones"><button class="peligro" id="com-rechazar">Rechazar</button><button class="primario" id="com-aprobar">Aprobar y enviar</button></div>' : ''}`}`;
+  $('com-volver').onclick = () => irA('#avisos');
+  const ba = $('com-aprobar'); if (ba) ba.onclick = async () => {
+    if (!await confirmar('Aprobar', `Se envía a ${(r.destinatarios_previstos || []).length} personas${r.programado_para ? ' el ' + fechaHora(r.programado_para) : ' ahora'}.`, 'Aprobar')) return;
+    const x = await api('com_aprobar', { id }); toast(x.ok ? 'Aprobado' : x.error, x.ok ? 'ok' : 'mal'); verDetalleCom(id);
+  };
+  const br = $('com-rechazar'); if (br) br.onclick = async () => {
+    const motivo = prompt('Motivo del rechazo (lo ve quien lo redactó):'); if (motivo === null) return;
+    const x = await api('com_rechazar', { id, motivo }); toast(x.ok ? 'Rechazado' : x.error, x.ok ? 'ok' : 'mal'); verDetalleCom(id);
+  };
+  const bre = $('com-reenviar'); if (bre) bre.onclick = async () => {
+    if (!await confirmar('Reenviar', `Les llega un push nuevo a las ${r.no_leyeron.length} personas que no leyeron.`, 'Reenviar')) return;
+    const x = await api('com_reenviar', { id }); toast(x.ok ? 'Reenviado a ' + x.pendientes : x.error, x.ok ? 'ok' : 'mal');
+  };
+}
+
+$('btn-nuevo-com').onclick = async () => {
+  const cat = S.com.catalogo || await api('com_catalogo'); if (!cat.ok) return toast(cat.error, 'mal');
+  S.com.catalogo = cat;
+  modal(`<h3>Nuevo aviso</h3><form id="f-com" class="form">
+    <div class="sel-grupo">${cat.global ? '<label class="check"><input type="checkbox" id="c-todos"> <b>Toda la empresa</b> (' + cat.total + ' personas)</label>' : ''}
+      <h4>Áreas</h4><div class="chips" id="c-areas">${cat.areas.map(a => `<label><input type="checkbox" value="${esc(a.codigo)}">${esc(a.nombre)} (${a.n})</label>`).join('') || '<small>sin áreas</small>'}</div>
+      ${cat.obras.length ? `<h4>Obras</h4><div class="chips" id="c-obras">${cat.obras.map(o => `<label><input type="checkbox" value="${esc(o.codigo)}">${esc(o.nombre)} (${o.n})</label>`).join('')}</div>` : '<div id="c-obras"></div>'}
+      <h4>Personas puntuales</h4><input id="c-buscar" type="search" placeholder="Buscar persona…" style="margin-bottom:6px"><div class="personas-lista" id="c-personas">${cat.personas.map(p => `<label data-n="${esc(p.nombre.toLowerCase())}"><input type="checkbox" value="${esc(p.legajo)}">${esc(p.nombre)}${p.tipo === 'lector' ? ' 🔗' : ''}</label>`).join('')}</div>
+      <p id="c-resumen" class="sub" style="margin:8px 0 0"><b>0 personas</b> seleccionadas</p></div>
+    <label class="campo"><span>Título</span><input id="c-titulo" required maxlength="120"></label>
+    <label class="campo"><span>Texto</span><textarea id="c-cuerpo" rows="4" maxlength="1500"></textarea></label>
+    <label class="campo"><span>Link (opcional)</span><input id="c-url" placeholder="https://…"></label>
+    <label class="campo"><span>Adjunto (opcional, hasta 8 MB)</span><input id="c-adjunto" type="file" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx"></label>
+    <label class="campo"><span>Programar para (opcional)</span><input id="c-fecha" type="datetime-local"></label>
+    <label class="check"><input id="c-critico" type="checkbox"> Crítico (push insistente)</label>
+    <div class="modal-acciones"><button type="button" class="secundario" id="c-cancelar">Cancelar</button><button type="submit" class="primario" id="c-enviar">${cat.rol === 'APROBADOR' ? 'Enviar' : 'Enviar a aprobación'}</button></div></form>`,
+    c => {
+      const sel = () => ({ todos: !!(c.querySelector('#c-todos') && c.querySelector('#c-todos').checked), areas: [...c.querySelectorAll('#c-areas input:checked')].map(i => i.value), obras: [...c.querySelectorAll('#c-obras input:checked')].map(i => i.value), legajos: [...c.querySelectorAll('#c-personas input:checked')].map(i => i.value) });
+      let timer;
+      const recalcular = () => { clearTimeout(timer); timer = setTimeout(async () => { const r = await api('com_preview', { seleccion: sel() }, { silencioso: true }); if (r.ok) c.querySelector('#c-resumen').innerHTML = `<b>${r.total} persona${r.total === 1 ? '' : 's'}</b>: ${esc(r.personas.map(p => p.nombre.split(' ')[0]).slice(0, 12).join(', '))}${r.total > 12 ? '…' : ''}`; }, 350); };
+      c.querySelectorAll('.sel-grupo input[type=checkbox]').forEach(i => i.onchange = recalcular);
+      c.querySelector('#c-buscar').oninput = e => { const q = e.target.value.toLowerCase(); c.querySelectorAll('#c-personas label').forEach(l => l.hidden = q && !l.dataset.n.includes(q)); };
+      c.querySelector('#c-cancelar').onclick = cerrarModal;
+      c.querySelector('#f-com').onsubmit = async e => {
+        e.preventDefault();
+        const s = sel();
+        if (!s.todos && !s.areas.length && !s.obras.length && !s.legajos.length) return toast('Elegí al menos un destinatario', 'mal');
+        let adjunto = null;
+        const f = c.querySelector('#c-adjunto').files[0];
+        if (f) { if (f.size > 8 * 1024 * 1024) return toast('El adjunto supera los 8 MB', 'mal'); adjunto = { nombre: f.name, tipo: f.type, base64: await new Promise(res => { const rd = new FileReader(); rd.onload = () => res(rd.result.split(',')[1]); rd.readAsDataURL(f); }) }; }
+        const fecha = c.querySelector('#c-fecha').value;
+        const r = await api('com_crear', { titulo: c.querySelector('#c-titulo').value, cuerpo: c.querySelector('#c-cuerpo').value, url: c.querySelector('#c-url').value, prioridad: c.querySelector('#c-critico').checked ? 'critica' : 'normal', seleccion: s, programado_para: fecha ? new Date(fecha).toISOString() : '', adjunto });
+        if (!r.ok) return toast(r.error, 'mal');
+        toast(r.estado === 'enviado' ? 'Enviado a ' + r.total + ' personas' : r.estado === 'programado' ? 'Programado' : 'Enviado a aprobación', 'ok');
+        cerrarModal(); verAvisos();
+      };
+    });
+};
+
+// ───────────────────────── Lector sin cuenta ─────────────────────────
+async function verLector() {
+  mostrarVista('lector');
+  const r = await api('lector_bandeja', { token_lector: S.lectorToken, limite: 100 }, { silencioso: true });
+  if (!r.ok) {
+    if (r.revocado) { localStorage.removeItem('ingeco_lector'); S.lectorToken = ''; }
+    $('lector-error').textContent = r.error;
+    if (r.offline) { try { const c = JSON.parse(localStorage.getItem('ingeco_bandeja') || 'null'); if (c) pintarLector(c.avisos); } catch (e) { } }
+    return;
+  }
+  $('lector-error').textContent = '';
+  $('lector-saludo').textContent = 'Hola, ' + String(r.nombre_visible).split(' ')[0];
+  try { localStorage.setItem('ingeco_bandeja', JSON.stringify({ avisos: r.avisos, sinLeer: r.sin_leer, total: r.total_sin_leer })); } catch (e) { }
+  pintarLector(r.avisos);
+  if ('Notification' in window) { $('lector-banner-push').hidden = Notification.permission === 'granted' || localStorage.getItem('ingeco_push_no') === '1'; if (Notification.permission === 'granted') suscribirPushLector(); }
+}
+function pintarLector(avisos) {
+  const lista = avisos.slice().sort((a, b) => (a.leido - b.leido) || (new Date(b.fecha) - new Date(a.fecha)));
+  $('lector-vacio').hidden = lista.length > 0;
+  let html = '', dia = '';
+  lista.forEach(a => {
+    const d = (a.leido ? 'Leídos · ' : '') + fechaDia(a.fecha);
+    if (d !== dia) { dia = d; html += `<div class="dia">${esc(d)}</div>`; }
+    html += `<div class="aviso ${a.leido ? '' : 'nuevo'} ${a.prioridad === 'critica' ? 'critico' : ''}" data-id="${esc(a.id)}"><div class="cuerpo"><div class="titulo">${a.prioridad === 'critica' ? '⚠️ ' : ''}${esc(a.titulo)}</div><div class="texto">${esc(a.cuerpo)}</div><div class="meta">${hora(a.fecha)}</div></div>${a.url_destino && !String(a.url_destino).startsWith('#') ? `<div class="acciones"><button aria-label="Abrir">↗</button></div>` : ''}</div>`;
+  });
+  $('lector-lista').innerHTML = html;
+  $('lector-lista').querySelectorAll('.aviso').forEach(el => el.onclick = async () => {
+    const a = avisos.find(x => x.id === el.dataset.id);
+    if (!a.leido) { a.leido = true; el.classList.remove('nuevo'); api('lector_marcar_leido', { token_lector: S.lectorToken, id: a.id }, { silencioso: true }); }
+    if (a.url_destino && !String(a.url_destino).startsWith('#')) window.open(a.url_destino, '_blank');
+  });
+}
+async function suscribirPushLector() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) { const v = await api('vapid', {}, { silencioso: true }); if (!v.ok || !v.clave) return; sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64aUint8(v.clave) }); }
+    const r = await api('lector_suscribir_push', { token_lector: S.lectorToken, suscripcion: sub.toJSON(), dispositivo: dispositivo() }, { silencioso: true });
+    if (r.ok) $('lector-banner-push').hidden = true;
+  } catch (e) { console.warn('push lector', e); }
+}
+$('btn-lector-push').onclick = async () => {
+  const p = await Notification.requestPermission();
+  if (p === 'granted') { await suscribirPushLector(); toast('Avisos activados', 'ok'); } else { localStorage.setItem('ingeco_push_no', '1'); $('lector-banner-push').hidden = true; }
+};
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !S.token && S.lectorToken) verLector(); });
+
 // ───────────────────────── Arranque ─────────────────────────
 (async function arrancar() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => { });
     navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.tipo === 'push') refrescar(true); });
   }
-  if (!S.token) { mostrarVista('login'); return; }
+  if (location.hash.startsWith('#ver/')) { enrutar(); return; }
+  if (!S.token) { if (S.lectorToken) { verLector(); return; } mostrarVista('login'); return; }
   // Arranque rápido con el perfil cacheado; se valida en segundo plano.
   try { S.perfil = JSON.parse(localStorage.getItem('ingeco_perfil') || 'null'); } catch (e) { S.perfil = null; }
   if (S.perfil) { entrar(); return; }
