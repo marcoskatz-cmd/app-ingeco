@@ -19,40 +19,14 @@
 <section id="v-login" class="vista" hidden>
   <div class="login-caja">
     <img src="logo.png" alt="INGECO" class="logo">
-    
-    <label class="campo">
-      <span>Tu nombre</span>
-      <input id="login-nombre" type="text" autocomplete="username" autocapitalize="words" placeholder="Nombre y apellido" enterkeyhint="next">
-    </label>
-    <p class="pin-label">Tu PIN</p>
-    <div id="login-pin" class="pin-puntos" aria-label="PIN de 4 dígitos"><i></i><i></i><i></i><i></i></div>
+    <p class="sub">Entrá con tu cuenta de INGECO</p>
+    <div id="google-btn" class="google-btn"></div>
     <p id="login-error" class="error" role="alert"></p>
-    <div class="teclado" data-destino="login">
-      <button type="button">1</button><button type="button">2</button><button type="button">3</button>
-      <button type="button">4</button><button type="button">5</button><button type="button">6</button>
-      <button type="button">7</button><button type="button">8</button><button type="button">9</button>
-      <span></span><button type="button">0</button><button type="button" data-tecla="borrar" aria-label="Borrar">⌫</button>
-    </div>
+    <p class="sub chico-texto">Usá la cuenta que termina en <b>@grupoingeco.com.ar</b>. Si no tenés, pedísela a Marcos.</p>
   </div>
 </section>
 
-<!-- ── CAMBIO DE PIN ── -->
-<section id="v-pin" class="vista" hidden>
-  <div class="login-caja">
-    <h1 id="pin-titulo">Elegí tu PIN</h1>
-    <p id="pin-sub" class="sub">4 números que vas a recordar. Se usa solo en este celular.</p>
-    <div id="nuevo-pin" class="pin-puntos"><i></i><i></i><i></i><i></i></div>
-    <p id="pin-error" class="error" role="alert"></p>
-    <div class="teclado" data-destino="pin">
-      <button type="button">1</button><button type="button">2</button><button type="button">3</button>
-      <button type="button">4</button><button type="button">5</button><button type="button">6</button>
-      <button type="button">7</button><button type="button">8</button><button type="button">9</button>
-      <span></span><button type="button">0</button><button type="button" data-tecla="borrar" aria-label="Borrar">⌫</button>
-    </div>
-  </div>
-</section>
 
-<!-- ── APP (con barra) ── -->
 <div id="app" hidden>
   <header class="barra">
     <button id="btn-volver" class="icono" hidden aria-label="Volver">‹</button>
@@ -173,6 +147,9 @@
 <div id="toast" class="toast" hidden></div>
 <div id="cargando" class="cargando" hidden><div class="spinner"></div></div>
 
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="app.js"></script>
 </body>
 </html>
