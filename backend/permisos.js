@@ -13,7 +13,7 @@ function modulosActivos_() {
       url: m.url,
       tipo: (m.tipo || 'iframe').toLowerCase(),
       icono: m.icono || '📋',
-      orden: Number(m.orden || 99),
+      orden: (m.orden === '' || m.orden === null || m.orden === undefined) ? 99 : Number(m.orden),
       responsable_legajo: m.responsable_legajo,
       responsable_celular: String(m.responsable_celular || '')
     }))
