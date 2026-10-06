@@ -133,6 +133,7 @@ function setup() {
       { codigo: 'TARJA', nombre: 'Tarja diaria', descripcion_corta: 'Horas y checklist de máquinas en obra', url: '', tipo: 'iframe', icono: '🕒', orden: 4, activo: 'sí' },
       { codigo: 'ROPA', nombre: 'Ropa de trabajo', descripcion_corta: 'Talles, compras y entregas de ropa', url: '', tipo: 'iframe', icono: '👷', orden: 5, activo: 'sí' },
       { codigo: 'PAVIMAX', nombre: 'PAVIMAX', descripcion_corta: 'Pedidos, entregas y stock de bolsas y emulsión', url: 'https://marcoskatz-cmd.github.io/pavimax/cargar.html', tipo: 'iframe', icono: '🧱', orden: 6, activo: 'sí' },
+      { codigo: 'PAVIMAX_OP', nombre: 'PAVIMAX operario', descripcion_corta: 'Entregas y producción en planta', url: 'https://marcoskatz-cmd.github.io/pavimax/', tipo: 'iframe', icono: '🏭', orden: 7, activo: 'sí' },
       { codigo: 'AVISOS', nombre: 'Enviar avisos', descripcion_corta: 'Comunicados a áreas, obras o personas', url: '#avisos', tipo: 'interno', icono: '📣', orden: 0, activo: 'sí' },
       { codigo: 'ADMIN', nombre: 'Administración de la app', descripcion_corta: 'Usuarios, permisos y avisos', url: '#admin', tipo: 'interno', icono: '⚙️', orden: 99, activo: 'sí' }
     ]);
