@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f3d5e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="INGECO">
+<title>INGECO</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<section id="v-login" class="vista" hidden>
+  <div class="login-caja">
+    <img src="icon.svg" alt="" class="logo">
+    <h1>INGECO</h1>
+    <label class="campo">
+      <span>Tu nombre</span>
+      <input id="login-nombre" type="text" autocomplete="username" autocapitalize="words" placeholder="Nombre y apellido" enterkeyhint="next">
+    </label>
+    <p class="pin-label">Tu PIN</p>
+    <div id="login-pin" class="pin-puntos" aria-label="PIN de 4 dígitos"><i></i><i></i><i></i><i></i></div>
+    <p id="login-error" class="error" role="alert"></p>
+    <div class="teclado" data-destino="login">
+      <button type="button">1</button><button type="button">2</button><button type="button">3</button>
+      <button type="button">4</button><button type="button">5</button><button type="button">6</button>
+      <button type="button">7</button><button type="button">8</button><button type="button">9</button>
+      <span></span><button type="button">0</button><button type="button" data-tecla="borrar" aria-label="Borrar">⌫</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── CAMBIO DE PIN ── -->
+<section id="v-pin" class="vista" hidden>
+  <div class="login-caja">
+    <h1 id="pin-titulo">Elegí tu PIN</h1>
+    <p id="pin-sub" class="sub">4 números que vas a recordar. Se usa solo en este celular.</p>
+    <div id="nuevo-pin" class="pin-puntos"><i></i><i></i><i></i><i></i></div>
+    <p id="pin-error" class="error" role="alert"></p>
+    <div class="teclado" data-destino="pin">
+      <button type="button">1</button><button type="button">2</button><button type="button">3</button>
+      <button type="button">4</button><button type="button">5</button><button type="button">6</button>
+      <button type="button">7</button><button type="button">8</button><button type="button">9</button>
+      <span></span><button type="button">0</button><button type="button" data-tecla="borrar" aria-label="Borrar">⌫</button>
+    </div>
+  </div>
+</section>
+
+<!-- ── APP (con barra) ── -->
+<div id="app" hidden>
+  <header class="barra">
+    <button id="btn-volver" class="icono" hidden aria-label="Volver">‹</button>
+    <h2 id="barra-titulo">INGECO</h2>
+    <div class="barra-acciones">
+      <button id="btn-consultar" class="icono" hidden aria-label="Consultar por WhatsApp" title="Consultar">💬</button>
+      <button id="btn-ayuda" class="icono" aria-label="Ayuda">?</button>
+      <button id="btn-campana" class="icono" aria-label="Avisos">🔔<span id="campana-n" class="badge" hidden></span><span id="campana-punto" class="punto" hidden></span></button>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <!-- INICIO -->
+    <section id="v-inicio" class="vista" hidden>
+      <p id="saludo" class="saludo"></p>
+      <div id="banner-push" class="banner" hidden>
+        <span>Activá los avisos para enterarte de lo que te toca.</span>
+        <button id="btn-activar-push" class="chico">Activar avisos</button>
+      </div>
+      <div id="banner-instalar" class="banner" hidden>
+        <span id="instalar-texto">Agregá INGECO a la pantalla de inicio para abrirla como una app.</span>
+        <button id="btn-instalar" class="chico">Instalar</button>
+        <button id="btn-cerrar-instalar" class="icono chico" aria-label="Cerrar">✕</button>
+      </div>
+      <div id="tarjetas" class="tarjetas"></div>
+      <p id="sin-modulos" class="vacio" hidden>Todavía no tenés módulos asignados.<br>Pedile acceso a Marcos.</p>
+      <button id="btn-salir" class="enlace">Cerrar sesión en este celular</button>
+    </section>
+
+    <!-- MÓDULO -->
+    <section id="v-modulo" class="vista vista-llena" hidden>
+      <iframe id="modulo-frame" title="Módulo" allow="camera; geolocation; clipboard-write"></iframe>
+    </section>
+
+    <!-- BANDEJA -->
+    <section id="v-bandeja" class="vista" hidden>
+      <div class="fila-acciones">
+        <select id="bandeja-filtro" hidden><option value="">Todos los módulos</option></select>
+        <button id="btn-todo-leido" class="chico">Marcar todo leído</button>
+      </div>
+      <div id="bandeja-lista" class="lista"></div>
+      <p id="bandeja-vacia" class="vacio" hidden>No tenés avisos.</p>
+    </section>
+
+    <!-- AYUDA -->
+    <section id="v-ayuda" class="vista vista-chat" hidden>
+      <div id="chat" class="chat"></div>
+      <form id="chat-form" class="chat-form">
+        <input id="chat-input" type="text" placeholder="Escribí tu pregunta…" autocomplete="off" enterkeyhint="send">
+        <button type="submit" class="primario" aria-label="Enviar">➤</button>
+      </form>
+      <a id="chat-wa" class="enlace" href="#" target="_blank" rel="noopener" hidden>Hablar con Marcos por WhatsApp</a>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="v-admin" class="vista" hidden>
+      <div id="admin-diag" class="banner alerta" hidden></div>
+      <nav class="tabs">
+        <button data-tab="personas" class="activa">Personas</button>
+        <button data-tab="modulos">Módulos</button>
+        <button data-tab="instructivos">Instructivos</button>
+        <button data-tab="bot">Bot</button>
+        <button data-tab="aviso">Enviar aviso</button>
+      </nav>
+
+      <div id="tab-personas" class="tab">
+        <div class="fila-acciones">
+          <input id="admin-buscar" type="search" placeholder="Buscar persona…">
+          <button id="btn-nueva-persona" class="primario">+ Nueva persona</button>
+          <button id="btn-importar" class="chico">Importar</button>
+        </div>
+        <div id="admin-grilla" class="grilla-wrap"></div>
+      </div>
+
+      <div id="tab-modulos" class="tab" hidden>
+        <div id="admin-modulos" class="lista"></div>
+        <button id="btn-nuevo-modulo" class="primario">+ Nuevo módulo</button>
+      </div>
+
+      <div id="tab-instructivos" class="tab" hidden>
+        <div class="fila-acciones">
+          <select id="instr-modulo"></select>
+          <button id="btn-nuevo-instr" class="primario">+ Sección</button>
+        </div>
+        <div id="admin-instr" class="lista"></div>
+      </div>
+
+      <div id="tab-bot" class="tab" hidden>
+        <div id="admin-bot"></div>
+      </div>
+
+      <div id="tab-aviso" class="tab" hidden>
+        <form id="form-aviso" class="form">
+          <label class="campo"><span>Para</span>
+            <select id="aviso-destino"><option value="todos">Todas las personas activas</option><option value="sector">Un sector</option><option value="modulo">Quienes tienen un módulo</option><option value="legajos">Personas puntuales</option></select>
+          </label>
+          <label class="campo" id="aviso-campo-sector" hidden><span>Sector</span><select id="aviso-sector"></select></label>
+          <label class="campo" id="aviso-campo-modulo" hidden><span>Módulo</span><select id="aviso-modulo"></select></label>
+          <div class="campo" id="aviso-campo-legajos" hidden><span>Personas</span><div id="aviso-legajos" class="chips"></div></div>
+          <label class="campo"><span>Título</span><input id="aviso-titulo" required maxlength="120"></label>
+          <label class="campo"><span>Texto</span><textarea id="aviso-cuerpo" rows="3" maxlength="600"></textarea></label>
+          <label class="campo"><span>Link (opcional)</span><input id="aviso-url" placeholder="https://…"></label>
+          <label class="check"><input id="aviso-critico" type="checkbox"> Crítico (también por WhatsApp)</label>
+          <button type="submit" class="primario">Enviar aviso</button>
+        </form>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ── Modal genérico ── -->
+<div id="modal" class="modal" hidden>
+  <div class="modal-caja" role="dialog" aria-modal="true">
+    <div id="modal-contenido"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+<div id="cargando" class="cargando" hidden><div class="spinner"></div></div>
+
+<script src="app.js"></script>
+</body>
+</html>
