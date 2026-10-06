@@ -2,8 +2,8 @@
 'use strict';
 
 const CONFIG = {
-  BACKEND_URL: 'https://script.google.com/macros/s/PEGAR_DEPLOYMENT_ID/exec',
-  GOOGLE_CLIENT_ID: 'PEGAR_CLIENT_ID.apps.googleusercontent.com',
+  BACKEND_URL: 'https://script.google.com/macros/s/AKfycbx9NN1FfOQjUjfymLXrMyd2QM6l96HP0lxY6RC7_xKsbDlO0PnwdHbaMtag54VYFor0/exec',
+  GOOGLE_CLIENT_ID: '1080058000144-q7r1ncjmglg515j0a5rd2dhqu7bt0fpt.apps.googleusercontent.com',
   GOOGLE_HD: 'grupoingeco.com.ar',
   REFRESCO_MS: 3 * 60 * 1000,
   VERSION: '1.0.0'

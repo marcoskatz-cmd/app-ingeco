@@ -169,9 +169,11 @@ function configurarSecretos() {
     // VAPID_PUBLIC_KEY: '...',
     // WA_TOKEN: '...', WA_PHONE_ID: '...',
     // CLAVE_INGECOV: '...', CLAVE_COMPRAS: '...', CLAVE_COMBUSTIBLE: '...', CLAVE_TARJA: '...', CLAVE_ROPA: '...',
-    // GOOGLE_CLIENT_ID: '....apps.googleusercontent.com', GOOGLE_HD: 'grupoingeco.com.ar',
-    // SHELL_URL: 'https://marcoskatz-cmd.github.io/app-ingeco/',
-    // ADMIN_NOMBRE: 'Marcos', ADMIN_CELULAR: '549381...'
+    GOOGLE_CLIENT_ID: '1080058000144-q7r1ncjmglg515j0a5rd2dhqu7bt0fpt.apps.googleusercontent.com',
+    GOOGLE_HD: 'grupoingeco.com.ar',
+    SHELL_URL: 'https://marcoskatz-cmd.github.io/app-ingeco/',
+    ADMIN_NOMBRE: 'Marcos'
+    // ADMIN_CELULAR: '549381...'
   }, false);
   console.log(Object.keys(PropertiesService.getScriptProperties().getProperties()).join(', '));
 }

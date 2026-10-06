@@ -1,4 +1,16 @@
 {
-  "scriptId": "PEGAR_SCRIPT_ID_ACA",
-  "rootDir": "."
+  "scriptId": "1vFNSd4BBqqorXp5yqMomqTVGmkafiYYpyjoCLq9X4kWN9B4_WnMH3HZ3",
+  "rootDir": "",
+  "scriptExtensions": [
+    ".js",
+    ".gs"
+  ],
+  "htmlExtensions": [
+    ".html"
+  ],
+  "jsonExtensions": [
+    ".json"
+  ],
+  "filePushOrder": [],
+  "skipSubdirectories": false
 }
