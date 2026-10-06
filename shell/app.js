@@ -3,6 +3,8 @@
 
 const CONFIG = {
   BACKEND_URL: 'https://script.google.com/macros/s/PEGAR_DEPLOYMENT_ID/exec',
+  GOOGLE_CLIENT_ID: 'PEGAR_CLIENT_ID.apps.googleusercontent.com',
+  GOOGLE_HD: 'grupoingeco.com.ar',
   REFRESCO_MS: 3 * 60 * 1000,
   VERSION: '1.0.0'
 };
@@ -15,8 +17,6 @@ const S = {
   moduloActual: null,
   chat: [],                // [{rol:'usuario'|'bot', texto}]
   admin: { usuarios: [], modulos: [], sectores: [], tab: 'personas' },
-  pinBuf: { login: '', pin: '' },
-  pinPaso: 0, pinPrimero: '',
   instalarEvt: null,
   timer: null
 };
@@ -36,7 +36,6 @@ async function api(accion, payload, opts) {
     });
     const j = await r.json();
     if (j.relogin) { cerrarSesionLocal(); mostrarVista('login'); toast(j.error, 'mal'); }
-    if (j.pin_provisorio && !j.ok) { mostrarVista('pin'); }
     return j;
   } catch (e) {
     return { ok: false, error: 'Sin conexión. Fijate la señal y probá de nuevo.', offline: true };
@@ -65,7 +64,7 @@ function confirmar(titulo, texto, textoBoton, peligro) {
   });
 }
 
-const VISTAS = ['login', 'pin', 'inicio', 'modulo', 'bandeja', 'ayuda', 'admin'];
+const VISTAS = ['login', 'inicio', 'modulo', 'bandeja', 'ayuda', 'admin'];
 function mostrarVista(v) {
   const enApp = ['inicio', 'modulo', 'bandeja', 'ayuda', 'admin'].includes(v);
   $('app').hidden = !enApp;
@@ -75,8 +74,7 @@ function mostrarVista(v) {
   if (v !== 'modulo') { $('modulo-frame').src = 'about:blank'; S.moduloActual = null; }
   const titulos = { inicio: 'INGECO', bandeja: 'Avisos', ayuda: 'Ayuda', admin: 'Administración' };
   if (titulos[v]) $('barra-titulo').textContent = titulos[v];
-  if (v === 'login') { S.pinBuf.login = ''; pintarPin('login-pin', ''); $('login-error').textContent = ''; setTimeout(() => $('login-nombre').focus(), 50); }
-  if (v === 'pin') { S.pinPaso = 0; S.pinPrimero = ''; S.pinBuf.pin = ''; pintarPin('nuevo-pin', ''); $('pin-titulo').textContent = 'Elegí tu PIN'; $('pin-error').textContent = ''; }
+  if (v === 'login') { $('login-error').textContent = ''; iniciarGoogle(); }
   window.scrollTo(0, 0);
 }
 
@@ -98,68 +96,35 @@ $('btn-volver').onclick = () => irA('#inicio');
 $('btn-campana').onclick = () => irA('#bandeja');
 $('btn-ayuda').onclick = () => { const m = S.moduloActual ? '/' + encodeURIComponent(S.moduloActual.codigo) : ''; irA('#ayuda' + m); };
 
-// ───────────────────────── Teclados PIN ─────────────────────────
-function pintarPin(id, buf) { [...$(id).children].forEach((i, k) => i.classList.toggle('lleno', k < buf.length)); }
-function sacudir(id) { const el = $(id); el.classList.remove('sacudir'); void el.offsetWidth; el.classList.add('sacudir'); }
-
-document.querySelectorAll('.teclado').forEach(t => {
-  t.addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    const dest = t.dataset.destino;
-    let buf = S.pinBuf[dest];
-    if (b.dataset.tecla === 'borrar') buf = buf.slice(0, -1);
-    else if (buf.length < 4) buf += b.textContent.trim();
-    S.pinBuf[dest] = buf;
-    pintarPin(dest === 'login' ? 'login-pin' : 'nuevo-pin', buf);
-    if (buf.length === 4) (dest === 'login' ? hacerLogin : pasoNuevoPin)();
+// ───────────────────────── Login con Google ─────────────────────────
+let googleListo = false;
+function iniciarGoogle() {
+  if (!window.google || !google.accounts) { setTimeout(iniciarGoogle, 300); return; }
+  if (!googleListo) {
+    google.accounts.id.initialize({
+      client_id: CONFIG.GOOGLE_CLIENT_ID,
+      hd: CONFIG.GOOGLE_HD,
+      callback: alCredencialGoogle,
+      auto_select: true,
+      itp_support: true,
+      ux_mode: 'popup'
+    });
+    googleListo = true;
+  }
+  google.accounts.id.renderButton($('google-btn'), {
+    type: 'standard', theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', locale: 'es', width: 280
   });
-});
-// Teclado físico también
-document.addEventListener('keydown', e => {
-  const vLogin = !$('v-login').hidden, vPin = !$('v-pin').hidden;
-  if (!vLogin && !vPin) return;
-  if (vLogin && document.activeElement === $('login-nombre')) { if (e.key === 'Enter') $('login-nombre').blur(); return; }
-  const dest = vLogin ? 'login' : 'pin';
-  if (/^\d$/.test(e.key) && S.pinBuf[dest].length < 4) { S.pinBuf[dest] += e.key; }
-  else if (e.key === 'Backspace') { S.pinBuf[dest] = S.pinBuf[dest].slice(0, -1); }
-  else return;
-  pintarPin(dest === 'login' ? 'login-pin' : 'nuevo-pin', S.pinBuf[dest]);
-  if (S.pinBuf[dest].length === 4) (dest === 'login' ? hacerLogin : pasoNuevoPin)();
-});
-
-async function hacerLogin() {
-  const nombre = $('login-nombre').value.trim();
-  const pin = S.pinBuf.login;
-  if (!nombre) { $('login-error').textContent = 'Escribí tu nombre primero'; S.pinBuf.login = ''; pintarPin('login-pin', ''); $('login-nombre').focus(); return; }
-  $('login-error').textContent = '';
-  const r = await api('login', { nombre, pin, dispositivo: dispositivo() });
-  if (!r.ok) { $('login-error').textContent = r.error; sacudir('login-pin'); S.pinBuf.login = ''; setTimeout(() => pintarPin('login-pin', ''), 300); return; }
-  S.token = r.token; localStorage.setItem('ingeco_token', r.token);
-  localStorage.setItem('ingeco_nombre', nombre);
-  guardarPerfil(r);
-  if (r.pin_provisorio) mostrarVista('pin'); else entrar();
 }
-
-async function pasoNuevoPin() {
-  const pin = S.pinBuf.pin;
-  if (S.pinPaso === 0) {
-    S.pinPrimero = pin; S.pinPaso = 1; S.pinBuf.pin = '';
-    $('pin-titulo').textContent = 'Repetí el PIN'; $('pin-error').textContent = '';
-    setTimeout(() => pintarPin('nuevo-pin', ''), 150);
-    return;
-  }
-  if (pin !== S.pinPrimero) {
-    $('pin-error').textContent = 'No coinciden. Empezá de nuevo.'; sacudir('nuevo-pin');
-    S.pinPaso = 0; S.pinPrimero = ''; S.pinBuf.pin = ''; $('pin-titulo').textContent = 'Elegí tu PIN';
-    setTimeout(() => pintarPin('nuevo-pin', ''), 300); return;
-  }
-  const r = await api('cambiar_pin', { pin_nuevo: pin });
-  if (!r.ok) { $('pin-error').textContent = r.error; sacudir('nuevo-pin'); S.pinPaso = 0; S.pinBuf.pin = ''; $('pin-titulo').textContent = 'Elegí tu PIN'; setTimeout(() => pintarPin('nuevo-pin', ''), 300); return; }
-  toast('PIN guardado', 'ok');
+async function alCredencialGoogle(resp) {
+  $('login-error').textContent = '';
+  const r = await api('login_google', { credential: resp.credential, dispositivo: dispositivo() });
+  if (!r.ok) { $('login-error').textContent = r.error; return; }
+  S.token = r.token; localStorage.setItem('ingeco_token', r.token);
+  guardarPerfil(r);
   entrar();
 }
 
-// ───────────────────────── Sesión ─────────────────────────
+
 function guardarPerfil(r) {
   S.perfil = { legajo: r.legajo, nombre_visible: r.nombre_visible, sector: r.sector, modulos: r.modulos || [], es_admin: !!r.es_admin };
   localStorage.setItem('ingeco_perfil', JSON.stringify(S.perfil));
@@ -168,6 +133,7 @@ function cerrarSesionLocal() {
   S.token = ''; S.perfil = null; S.avisos = [];
   localStorage.removeItem('ingeco_token'); localStorage.removeItem('ingeco_perfil');
   clearInterval(S.timer);
+  try { google.accounts.id.disableAutoSelect(); } catch (e) { }
 }
 $('btn-salir').onclick = async () => {
   if (!await confirmar('Cerrar sesión', 'Vas a tener que volver a poner tu nombre y PIN en este celular.', 'Cerrar sesión')) return;
@@ -189,7 +155,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 /** Perfil + bandeja en una pasada (dos llamadas en paralelo). */
 async function refrescar(silencioso) {
   const [p, b] = await Promise.all([api('perfil', {}, { silencioso: true }), api('bandeja', { limite: 100 }, { silencioso: true })]);
-  if (p.ok) { guardarPerfil(p); if (p.pin_provisorio) { mostrarVista('pin'); return; } }
+  if (p.ok) guardarPerfil(p);
   if (b.ok) { S.avisos = b.avisos; S.sinLeer = b.sin_leer || {}; S.totalSinLeer = b.total_sin_leer || 0; }
   pintarCampana();
   if (!$('v-inicio').hidden) verInicio();
@@ -441,7 +407,7 @@ function pintarGrilla() {
   const mods = S.admin.modulos;
   const us = S.admin.usuarios.filter(u => !q || String(u.nombre_visible).toLowerCase().includes(q) || String(u.sector).toLowerCase().includes(q));
   $('admin-grilla').innerHTML = `<table class="grilla"><thead><tr><th>Persona</th>${mods.map(m => `<th title="${esc(m.nombre)}">${esc(m.icono)}<br>${esc(m.codigo)}</th>`).join('')}</tr></thead><tbody>
-    ${us.map(u => `<tr class="${u.activo ? '' : 'inactivo'}"><td><button class="nombre-btn" data-ficha="${esc(u.legajo)}">${esc(u.nombre_visible)}</button><br><small>${esc(u.sector || '')}${u.pin_provisorio ? ' · PIN provisorio' : ''}${u.bloqueado_min ? ' · bloqueado' : ''}</small></td>
+    ${us.map(u => `<tr class="${u.activo ? '' : 'inactivo'}"><td><button class="nombre-btn" data-ficha="${esc(u.legajo)}">${esc(u.nombre_visible)}</button><br><small>${esc(u.sector || '')}${u.ultimo_ingreso ? '' : ' · nunca entró'}</small></td>
       ${mods.map(m => { const p = u.modulos.find(x => x.modulo === m.codigo); return `<td><input type="checkbox" data-legajo="${esc(u.legajo)}" data-mod="${esc(m.codigo)}" ${p ? 'checked' : ''} ${u.activo ? '' : 'disabled'} title="${p ? esc(p.rol) : ''}"></td>`; }).join('')}</tr>`).join('')}
   </tbody></table>`;
   $('admin-grilla').querySelectorAll('input[type=checkbox]').forEach(c => c.onchange = async () => {
@@ -467,8 +433,8 @@ function conSectorNuevo(c, id) {
 
 $('btn-nueva-persona').onclick = () => {
   modal(`<h3>Nueva persona</h3><form id="f-alta" class="form">
-    <label class="campo"><span>Nombre</span><input id="a-nombre" required autocapitalize="words"></label>
-    <label class="campo"><span>Apellido</span><input id="a-apellido" required autocapitalize="words"></label>
+    <label class="campo"><span>Nombre y apellido</span><input id="a-nombre" required autocapitalize="words"></label>
+    <label class="campo"><span>Email de INGECO</span><input id="a-email" type="email" required placeholder="nombre@grupoingeco.com.ar" autocapitalize="none"></label>
     <label class="campo"><span>Sector</span>${selectSector('a-sector')}</label>
     <label class="campo"><span>Celular (con característica, sin 0 ni 15)</span><input id="a-celular" type="tel" inputmode="numeric" placeholder="3815551234"></label>
     <div class="campo"><span>Módulos</span><div class="chips">${S.admin.modulos.map(m => `<label><input type="checkbox" value="${esc(m.codigo)}">${esc(m.icono)} ${esc(m.nombre)}</label>`).join('')}</div></div>
@@ -479,18 +445,17 @@ $('btn-nueva-persona').onclick = () => {
       c.querySelector('#f-alta').onsubmit = async e => {
         e.preventDefault();
         const r = await api('admin_alta', {
-          nombre: c.querySelector('#a-nombre').value, apellido: c.querySelector('#a-apellido').value, sector: c.querySelector('#a-sector').value,
+          nombre: c.querySelector('#a-nombre').value, email: c.querySelector('#a-email').value, sector: c.querySelector('#a-sector').value,
           celular: c.querySelector('#a-celular').value, modulos: [...c.querySelectorAll('.chips input:checked')].map(i => i.value)
         });
         if (!r.ok) return toast(r.error, 'mal');
-        mostrarPin(r.nombre_visible, r.pin, r.wa_link);
+        mostrarAcceso(r.nombre_visible, r.email, r.wa_link);
         verAdmin();
       };
     });
 };
-function mostrarPin(nombre, pin, waLink) {
-  modal(`<h3>Acceso creado para ${esc(nombre)}</h3><p>PIN provisorio (se muestra una sola vez):</p><div class="pin-grande">${esc(pin)}</div>
-    <p class="sub">Al entrar por primera vez va a tener que elegir su PIN definitivo.</p>
+function mostrarAcceso(nombre, email, waLink) {
+  modal(`<h3>Acceso creado para ${esc(nombre)}</h3><p>Entra con su cuenta de Google <b>${esc(email)}</b>. No hace falta PIN ni contraseña nueva.</p>
     <div class="modal-acciones">${waLink ? `<a class="primario" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="${esc(waLink)}" target="_blank" rel="noopener">Enviar acceso por WhatsApp</a>` : ''}<button class="secundario" id="p-cerrar">Cerrar</button></div>`,
     c => c.querySelector('#p-cerrar').onclick = cerrarModal);
 }
@@ -499,30 +464,25 @@ async function verFicha(legajo) {
   const r = await api('admin_ficha', { legajo });
   if (!r.ok) return toast(r.error, 'mal');
   const u = r.usuario;
-  modal(`<h3>${esc(u.nombre_visible)}</h3><p class="sub">Legajo ${esc(u.legajo)} · alta ${u.fecha_alta ? new Date(u.fecha_alta).toLocaleDateString('es-AR') : ''} ${u.activo ? '' : '· <b>DADO DE BAJA</b>'}</p>
+  modal(`<h3>${esc(u.nombre_visible)}</h3><p class="sub">Legajo ${esc(u.legajo)} · alta ${u.fecha_alta ? new Date(u.fecha_alta).toLocaleDateString('es-AR') : ''}${u.ultimo_ingreso ? ' · último ingreso ' + new Date(u.ultimo_ingreso).toLocaleDateString('es-AR') : ' · nunca entró'} ${u.activo ? '' : '· <b>DADO DE BAJA</b>'}</p>
     <form id="f-ficha" class="form">
       <label class="campo"><span>Sector</span>${selectSector('f-sector', u.sector)}</label>
       <label class="campo"><span>Celular</span><input id="f-celular" type="tel" inputmode="numeric" value="${esc(u.celular)}"></label>
-      <label class="campo"><span>Alias (otras formas de escribir el nombre, separadas por coma)</span><input id="f-alias" value="${esc(String(u.alias || '').replace(/\|/g, ', '))}" placeholder="pepe perez, jose perez"></label>
+      <label class="campo"><span>Email de INGECO</span><input id="f-email" type="email" value="${esc(u.email || '')}" autocapitalize="none"></label>
       <button type="submit" class="primario">Guardar cambios</button>
     </form>
     <p><b>Módulos:</b> ${r.modulos.map(m => `<span class="chip">${esc(m.icono)} ${esc(m.nombre)} · ${esc(m.rol)}</span>`).join('') || 'ninguno'}</p>
     <p><b>Sesiones activas (${r.sesiones.length}):</b><br>${r.sesiones.map(s => `<small>${esc(s.dispositivo || 'dispositivo')} · último uso ${s.ultimo_uso ? new Date(s.ultimo_uso).toLocaleDateString('es-AR') : '-'}</small>`).join('<br>') || '<small>ninguna</small>'}</p>
     <p><small>Celulares con avisos push: ${r.suscripciones}</small></p>
-    <div class="modal-acciones"><button class="secundario" id="f-reset">Resetear PIN</button><button class="secundario" id="f-sesiones">Cerrar sesiones</button></div>
+    <div class="modal-acciones">${u.wa_link ? `<a class="secundario" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="${esc(u.wa_link)}" target="_blank" rel="noopener">Enviar acceso por WhatsApp</a>` : ''}<button class="secundario" id="f-sesiones">Cerrar sesiones</button></div>
     <div class="modal-acciones"><button class="${u.activo ? 'peligro' : 'primario'}" id="f-baja">${u.activo ? 'Dar de baja' : 'Reactivar'}</button><button class="secundario" id="f-cerrar">Cerrar</button></div>`,
     c => {
       conSectorNuevo(c, 'f-sector');
       c.querySelector('#f-cerrar').onclick = cerrarModal;
       c.querySelector('#f-ficha').onsubmit = async e => {
         e.preventDefault();
-        const x = await api('admin_editar', { legajo, sector: c.querySelector('#f-sector').value, celular: c.querySelector('#f-celular').value, alias: c.querySelector('#f-alias').value });
+        const x = await api('admin_editar', { legajo, sector: c.querySelector('#f-sector').value, celular: c.querySelector('#f-celular').value, email: c.querySelector('#f-email').value });
         if (x.ok) { toast('Guardado', 'ok'); cerrarModal(); verAdmin(); } else toast(x.error, 'mal');
-      };
-      c.querySelector('#f-reset').onclick = async () => {
-        if (!await confirmar('Resetear PIN', 'Se le cierran todas las sesiones y recibe un PIN provisorio nuevo.', 'Resetear')) return;
-        const x = await api('admin_reset_pin', { legajo }); if (!x.ok) return toast(x.error, 'mal');
-        mostrarPin(u.nombre_visible, x.pin, x.wa_link);
       };
       c.querySelector('#f-sesiones').onclick = async () => {
         if (!await confirmar('Cerrar sesiones', 'Va a tener que volver a entrar con nombre y PIN en todos sus celulares.', 'Cerrar sesiones')) return;
@@ -530,15 +490,15 @@ async function verFicha(legajo) {
       };
       c.querySelector('#f-baja').onclick = async () => {
         const reactivar = !u.activo;
-        if (!reactivar && !await confirmar('Dar de baja', 'No va a poder entrar más. Se conserva su historial.', 'Dar de baja', true)) return;
+        if (!reactivar && !await confirmar('Dar de baja', 'No va a poder entrar más, aunque tenga cuenta de Google. Se conserva su historial.', 'Dar de baja', true)) return;
         const x = await api('admin_baja', { legajo, reactivar }); toast(x.ok ? 'Listo' : x.error, x.ok ? 'ok' : 'mal'); cerrarModal(); verAdmin();
       };
     });
 }
 
 $('btn-importar').onclick = () => {
-  modal(`<h3>Importar personas</h3><p class="sub">Pegá filas copiadas de una planilla: <b>nombre, apellido, sector, celular</b> (separadas por tabulación o punto y coma). Se crean sin módulos; después tildás los permisos en la grilla.</p>
-    <textarea id="imp-texto" rows="8" placeholder="Juan&#9;Pérez&#9;Taller&#9;3815551234"></textarea>
+  modal(`<h3>Importar personas</h3><p class="sub">Pegá filas copiadas de una planilla: <b>nombre y apellido, email de INGECO, sector, celular</b> (separadas por tabulación o punto y coma). Se crean sin módulos; después tildás los permisos en la grilla.</p>
+    <textarea id="imp-texto" rows="8" placeholder="Juan Pérez&#9;jperez@grupoingeco.com.ar&#9;Taller&#9;3815551234"></textarea>
     <div class="modal-acciones"><button class="secundario" id="imp-cancelar">Cancelar</button><button class="primario" id="imp-ok">Importar</button></div>`,
     c => {
       c.querySelector('#imp-cancelar').onclick = cerrarModal;
@@ -546,9 +506,8 @@ $('btn-importar').onclick = () => {
         const r = await api('admin_importar', { texto: c.querySelector('#imp-texto').value });
         if (!r.ok) return toast(r.error, 'mal');
         modal(`<h3>Importación</h3><p>${r.creados.length} personas creadas${r.errores.length ? ', ' + r.errores.length + ' con error' : ''}.</p>
-          <div class="lista">${r.creados.map(p => `<div class="item"><div class="t">${esc(p.nombre_visible)} · PIN <b>${esc(p.pin)}</b></div>${p.wa_link ? `<a href="${esc(p.wa_link)}" target="_blank" rel="noopener">Enviar acceso por WhatsApp</a>` : '<small>sin celular</small>'}</div>`).join('')}
+          <div class="lista">${r.creados.map(p => `<div class="item"><div class="t">${esc(p.nombre_visible)} <small>${esc(p.email)}</small></div>${p.wa_link ? `<a href="${esc(p.wa_link)}" target="_blank" rel="noopener">Enviar acceso por WhatsApp</a>` : '<small>sin celular</small>'}</div>`).join('')}
           ${r.errores.map(e => `<div class="item"><div class="d">Línea ${e.linea}: ${esc(e.error)}</div></div>`).join('')}</div>
-          <p class="sub">Anotá los PIN ahora: no se vuelven a mostrar.</p>
           <div class="modal-acciones"><button class="primario" id="imp-cerrar">Listo</button></div>`, cc => cc.querySelector('#imp-cerrar').onclick = () => { cerrarModal(); verAdmin(); });
       };
     });
@@ -667,12 +626,12 @@ $('form-aviso').onsubmit = async e => {
     navigator.serviceWorker.register('sw.js').catch(() => { });
     navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.tipo === 'push') refrescar(true); });
   }
-  if (!S.token) { $('login-nombre').value = localStorage.getItem('ingeco_nombre') || ''; mostrarVista('login'); return; }
+  if (!S.token) { mostrarVista('login'); return; }
   // Arranque rápido con el perfil cacheado; se valida en segundo plano.
   try { S.perfil = JSON.parse(localStorage.getItem('ingeco_perfil') || 'null'); } catch (e) { S.perfil = null; }
   if (S.perfil) { entrar(); return; }
   const r = await api('perfil');
   if (!r.ok) { cerrarSesionLocal(); mostrarVista('login'); return; }
   guardarPerfil(r);
-  if (r.pin_provisorio) mostrarVista('pin'); else entrar();
+  entrar();
 })();

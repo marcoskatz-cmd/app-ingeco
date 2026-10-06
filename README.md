@@ -1,6 +1,6 @@
 # App INGECO
 
-Punto de entrada único en el celular: login nombre + PIN, módulos por permiso, bandeja de avisos con push, bot de ayuda con Claude que conoce los módulos que cada persona tiene autorizados.
+Punto de entrada único en el celular: login con la cuenta de Google de INGECO, módulos por permiso, bandeja de avisos con push, bot de ayuda con Claude que conoce los módulos que cada persona tiene autorizados.
 
 Diseño técnico completo en `docs/diseno-v1.md`.
 
@@ -24,12 +24,14 @@ clasp push
 
 En el editor de Apps Script (o con `clasp run`):
 
-1. Correr `setup()` → crea la planilla `APP_INGECO`, las 8 hojas, los módulos iniciales, los instructivos semilla y el primer ADMIN. **Editá NOMBRE/APELLIDO/CELULAR en `setup()` antes.** El PIN provisorio del admin aparece en el log.
+1. Correr `setup()` → crea la planilla `APP_INGECO`, las 8 hojas, los módulos iniciales, los instructivos semilla y el primer ADMIN. **Editá EMAIL/NOMBRE/CELULAR en `setup()` antes.**
 2. Completar `configurarSecretos()` y correrlo una vez (después borrar los valores del código). Propiedades:
 
 | Propiedad | Para qué |
 |---|---|
 | `SPREADSHEET_ID` | la pone `setup()` |
+| `GOOGLE_CLIENT_ID` | OAuth client id (Web) de Google Cloud, el mismo que en `shell/app.js` |
+| `GOOGLE_HD` | dominio(s) permitidos, coma-separados. Default `grupoingeco.com.ar` |
 | `CLAUDE_API_KEY` | bot de ayuda |
 | `PUSH_RELAY_URL`, `PUSH_RELAY_SECRET`, `VAPID_PUBLIC_KEY` | Web Push vía relay |
 | `WA_TOKEN`, `WA_PHONE_ID` | WhatsApp Cloud API (solo avisos críticos) |
@@ -54,15 +56,21 @@ Variables de entorno en Vercel: `RELAY_SECRET` (inventalo, largo), `VAPID_PUBLIC
 
 Prueba: con tu celular suscripto, correr `probarPush()` en el editor.
 
-### 3. Shell
+### 3. Google Sign-In (una vez)
+
+1. Google Cloud Console (con la cuenta de Workspace de INGECO) → APIs y servicios → Pantalla de consentimiento OAuth: tipo **Interno** (solo cuentas del Workspace), nombre "INGECO".
+2. Credenciales → Crear credencial → **ID de cliente OAuth** → tipo *Aplicación web*. En *Orígenes autorizados de JavaScript* poner la URL del shell (ej. `https://marcoskatz-cmd.github.io`) y `http://localhost:8765` para probar. No hace falta redirect URI (se usa modo popup).
+3. Copiar el client id en `CONFIG.GOOGLE_CLIENT_ID` de `shell/app.js` y en la propiedad `GOOGLE_CLIENT_ID` del backend.
+
+### 4. Shell
 
 1. En `shell/app.js` pegar la URL `/exec` del deployment en `CONFIG.BACKEND_URL`.
 2. Publicar la carpeta `shell/` en GitHub Pages (Settings → Pages → branch `main`, folder `/shell`) o en Vercel. HTTPS es obligatorio para service worker y push.
-3. Abrir en el celular, entrar con nombre + PIN provisorio, elegir PIN, aceptar avisos.
+3. Abrir en el celular, "Iniciar sesión con Google" con la cuenta de INGECO, aceptar avisos.
 
 ## Operación diaria
 
-- **Alta**: Admin → Personas → "+ Nueva persona" → aparece el PIN y el botón "Enviar acceso por WhatsApp".
+- **Alta**: Admin → Personas → "+ Nueva persona" (nombre + email de INGECO + módulos) → botón "Enviar acceso por WhatsApp". Alternativa sin alta: la persona entra con su cuenta de Google, queda creada sin módulos y el admin recibe un aviso para tildarle permisos.
 - **Permisos**: la grilla persona × módulo. Cada tilde escribe/borra una fila en PERMISOS. ADMIN es un módulo más.
 - **Módulo nuevo**: Admin → Módulos → "+ Nuevo módulo" (o una fila en MODULOS). Aparece en el inicio sin redeploy.
 - **Instructivos**: Admin → Instructivos. El bot los lee en cada llamada; un cambio rige al instante.
@@ -83,7 +91,7 @@ Ver `docs/integracion-modulos.md`. Resumen:
 
 ```
 POST <exec> {"accion":"validar_token","token":"…","modulo":"INGECOV"}
-  → {ok, legajo, nombre_visible, sector, rol_en_modulo, modulos:[…]}
+  → {ok, legajo, nombre_visible, email, sector, rol_en_modulo, modulos:[…]}
 
 POST <exec> {"accion":"notificar","clave_sistema":"…","modulo":"INGECOV","destinatarios":["12", {"rol":"TALLER"}, {"sector":"Taller"}],
              "tipo":"vencimiento_doc","titulo":"…","cuerpo":"…","url_destino":"https://…","prioridad":"normal|critica"}

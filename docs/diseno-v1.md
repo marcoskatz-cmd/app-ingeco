@@ -1,5 +1,7 @@
 # App INGECO — Diseño técnico v1
 
+> **Cambio 6-oct-2026 (v1.1):** el login nombre + PIN de la sección 4 se reemplazó por **Google Sign-In con las cuentas del Workspace de INGECO** (`@grupoingeco.com.ar`). Desaparecen PIN, hash, bloqueo por intentos, PIN provisorio y alias; la identidad es el email verificado por Google. Alta: por Admin (nombre + email) o automática al primer ingreso, sin módulos. El resto del diseño sigue vigente.
+
 Oct 6, 2026 · @Marcos
 
 ## 1. Objetivo y alcance

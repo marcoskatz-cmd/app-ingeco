@@ -18,7 +18,7 @@ async function validarTokenShell(token, modulo) {
     body: JSON.stringify({ accion: 'validar_token', token, modulo })
   });
   const j = await r.json();
-  return j.ok ? j : null;   // {legajo, nombre_visible, sector, rol_en_modulo}
+  return j.ok ? j : null;   // {legajo, nombre_visible, email, sector, rol_en_modulo}
 }
 
 (async () => {
@@ -39,6 +39,7 @@ function volverAlShell()     { parent.postMessage({ tipo: 'ingeco_volver' }, '*'
 ```
 
 > Ropa de trabajo: hoy pide PIN por legajo. Con token válido, confiar en `legajo` y no pedir PIN. Sin token, pedirlo como siempre.
+> El token del shell nace de la cuenta de Google de INGECO, así que `email` también viene verificado.
 
 ### Pedidos de compra (Vercel, JWT propio) — `tipo = link`
 

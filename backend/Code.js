@@ -4,10 +4,10 @@
  * Contrato: POST body JSON {accion, token?, payload?}  →  JSON {ok, ...}
  * El shell manda Content-Type text/plain para evitar el preflight CORS.
  *
- * Acciones públicas (sin token):  login, validar_token, notificar (con clave_sistema), vapid, ping
- * Acciones de usuario (token):    perfil, cambiar_pin, cerrar_sesion, bandeja, marcar_leido, suscribir_push,
+ * Acciones públicas (sin token):  login_google, validar_token, notificar (con clave_sistema), vapid, ping
+ * Acciones de usuario (token):    perfil, cerrar_sesion, bandeja, marcar_leido, suscribir_push,
  *                                 desuscribir_push, ayuda, valorar_ayuda, saludo_ayuda
- * Acciones ADMIN (token+ADMIN):   admin_usuarios, admin_alta, admin_set_permiso, admin_editar, admin_reset_pin,
+ * Acciones ADMIN (token+ADMIN):   admin_usuarios, admin_alta, admin_set_permiso, admin_editar,
  *                                 admin_cerrar_sesiones, admin_baja, admin_ficha, admin_importar, admin_modulos,
  *                                 admin_guardar_modulo, admin_instructivos, admin_guardar_instructivo,
  *                                 admin_stats_bot, admin_aviso, admin_diagnostico
@@ -16,14 +16,13 @@
 const PUBLICAS = {
   ping: () => ({ ok: true, hora: new Date(), version: VERSION }),
   vapid: () => ({ ok: true, clave: vapidPublica_() }),
-  login: p => login_(p),
+  login_google: p => loginGoogle_(p),
   validar_token: p => validarToken_(p),
   notificar: p => notificar_(p)
 };
 
 const USUARIO = {
-  perfil: ctx => Object.assign({ ok: true, pin_provisorio: si_(ctx.usuario.pin_provisorio) }, perfil_(ctx.usuario)),
-  cambiar_pin: (ctx, p) => cambiarPin_(ctx, p),
+  perfil: ctx => Object.assign({ ok: true }, perfil_(ctx.usuario)),
   cerrar_sesion: ctx => cerrarSesion_(ctx),
   bandeja: (ctx, p) => bandeja_(ctx, p),
   marcar_leido: (ctx, p) => marcarLeido_(ctx, p),
@@ -39,7 +38,6 @@ const ADMIN = {
   admin_alta: (ctx, p) => altaUsuario_(ctx, p),
   admin_set_permiso: (ctx, p) => setPermiso_(ctx, p),
   admin_editar: (ctx, p) => editarUsuario_(ctx, p),
-  admin_reset_pin: (ctx, p) => resetPin_(ctx, p),
   admin_cerrar_sesiones: (ctx, p) => cerrarSesionesUsuario_(ctx, p),
   admin_baja: (ctx, p) => bajaUsuario_(ctx, p),
   admin_ficha: (ctx, p) => fichaUsuario_(ctx, p),
@@ -78,12 +76,7 @@ function doPost(e) {
     if (PUBLICAS[accion]) return json_(PUBLICAS[accion](payload));
 
     const ctx = sesionDe_(req.token);
-    if (!ctx) return json_({ ok: false, error: 'Tu sesión venció. Volvé a entrar con tu nombre y PIN.', relogin: true });
-
-    // Con PIN provisorio solo se puede cambiar el PIN o salir.
-    if (si_(ctx.usuario.pin_provisorio) && ['cambiar_pin', 'cerrar_sesion', 'perfil'].indexOf(accion) < 0) {
-      return json_({ ok: false, error: 'Primero elegí tu PIN definitivo', pin_provisorio: true });
-    }
+    if (!ctx) return json_({ ok: false, error: 'Tu sesión venció. Volvé a entrar con tu cuenta de Google.', relogin: true });
 
     if (USUARIO[accion]) return json_(USUARIO[accion](ctx, payload));
     if (ADMIN[accion]) {
@@ -101,7 +94,7 @@ function doPost(e) {
 
 /**
  * 1) Crea la planilla APP_INGECO (o usa SPREADSHEET_ID si ya está), las 8 hojas y los módulos iniciales.
- * 2) Crea el primer ADMIN. Editá NOMBRE/APELLIDO/CELULAR antes de correrlo. Loguea el PIN provisorio.
+ * 2) Crea el primer ADMIN con tu email de Google. Editá EMAIL/NOMBRE/CELULAR antes de correrlo.
  */
 function setup() {
   const props = PropertiesService.getScriptProperties();
@@ -129,17 +122,12 @@ function setup() {
 
   if (!leer_('USUARIOS').length) {
     // ⇩ EDITAR antes de correr ⇩
-    const NOMBRE = 'Marcos', APELLIDO = 'Katz', CELULAR = '', SECTOR = 'Ingeniería';
+    const EMAIL = 'marcoskatz@grupoingeco.com.ar', NOMBRE = 'Marcos Katz', CELULAR = '', SECTOR = 'Ingeniería';
     const legajo = '1';
-    const pin = pinAleatorio_();
-    const visible = NOMBRE + ' ' + APELLIDO;
-    agregar_('USUARIOS', {
-      legajo, nombre_visible: visible, nombre_norm: normalizar_(visible), alias_norm: normalizar_(NOMBRE) + '|' + normalizar_(APELLIDO + ' ' + NOMBRE),
-      sector: SECTOR, celular: CELULAR, pin_hash: hashPin_(pin, legajo), pin_provisorio: 'sí', activo: 'sí',
-      intentos_fallidos: 0, bloqueado_hasta: '', creado_por: 'setup', fecha_alta: ahora_()
-    });
+    const visible = NOMBRE;
+    agregar_('USUARIOS', { legajo, nombre_visible: visible, email: EMAIL, sector: SECTOR, celular: CELULAR, activo: 'sí', creado_por: 'setup', fecha_alta: ahora_(), ultimo_ingreso: '' });
     agregarVarias_('PERMISOS', ['ADMIN', 'INGECOV', 'COMPRAS', 'COMBUSTIBLE', 'TARJA', 'ROPA'].map(m => ({ legajo, modulo: m, rol: 'ADMIN', otorgado_por: 'setup', fecha: ahora_() })));
-    console.log('ADMIN creado: ' + visible + ' — PIN provisorio: ' + pin);
+    console.log('ADMIN creado: ' + visible + ' (' + EMAIL + ')');
   }
   console.log('Diagnóstico: ' + JSON.stringify(diagnostico_()));
   console.log('Planilla: ' + ss_().getUrl());
@@ -147,8 +135,8 @@ function setup() {
 
 function seedInstructivos_() {
   agregarVarias_('INSTRUCTIVOS', [
-    { modulo: 'APP', seccion: 'Entrar', texto: 'Escribís tu nombre y tu PIN de 4 números. La app queda abierta en ese celular; solo vuelve a pedir el PIN si cambiás de teléfono o pasan 60 días sin usarla.', actualizado: new Date() },
-    { modulo: 'APP', seccion: 'Olvidé mi PIN', texto: 'Pedile a Marcos que te lo resetee. Te llega un PIN provisorio por WhatsApp y al entrar elegís uno nuevo.', actualizado: new Date() },
+    { modulo: 'APP', seccion: 'Entrar', texto: 'Tocás "Iniciar sesión con Google" y elegís tu cuenta de INGECO (la que termina en @grupoingeco.com.ar). La app queda abierta en ese celular; solo vuelve a pedir la cuenta si cambiás de teléfono o pasan 60 días sin usarla.', actualizado: new Date() },
+    { modulo: 'APP', seccion: 'No puedo entrar', texto: 'Si Google dice que la cuenta no es válida, fijate que sea la de INGECO y no una personal. Si entrás y no ves módulos, pedile a Marcos que te asigne permisos.', actualizado: new Date() },
     { modulo: 'APP', seccion: 'Avisos', texto: 'La campana de arriba muestra tus avisos. Tocás uno y te lleva al lugar exacto del módulo. "Marcar todo leído" limpia la lista. Si no te llegan notificaciones, tocá la campana y activá los avisos.', actualizado: new Date() },
     { modulo: 'APP', seccion: 'Instalar en el celular', texto: 'Android: menú del navegador (tres puntos) → "Agregar a la pantalla de inicio". iPhone: botón Compartir → "Agregar a inicio".', actualizado: new Date() },
     { modulo: 'INGECOV', seccion: 'Qué es', texto: 'Panel de mantenimiento de la flota: services por horas, repuestos entregados, trabajos realizados y documentación (VTV, seguro, RTO) de cada equipo.', actualizado: new Date() },
@@ -158,7 +146,7 @@ function seedInstructivos_() {
     { modulo: 'COMBUSTIBLE', seccion: 'Cargar gasoil', texto: 'Elegís el equipo de la lista, ponés los litros y el horómetro, y guardás. Si la carga queda fuera de lo normal para ese equipo, la app avisa a Marcos.', actualizado: new Date() },
     { modulo: 'TARJA', seccion: 'Tarja diaria', texto: 'Cada día, por cada máquina: horas de inicio y fin, el checklist de estado y una foto. Se usa para certificar la obra, así que no se puede saltear el checklist.', actualizado: new Date() },
     { modulo: 'ROPA', seccion: 'Entregas', texto: 'Cuando hay ropa para retirar te llega un aviso. Al retirar, firmás en la pantalla o en la planilla; si no estás en la lista, consultá con tu capataz.', actualizado: new Date() },
-    { modulo: 'ADMIN', seccion: 'Dar de alta a alguien', texto: 'Admin → "Nueva persona": nombre, apellido, sector, celular y los módulos tildados. Al guardar aparece el PIN provisorio y el botón para mandarle el acceso por WhatsApp.', actualizado: new Date() }
+    { modulo: 'ADMIN', seccion: 'Dar de alta a alguien', texto: 'Admin → "Nueva persona": nombre, email de INGECO, sector, celular y los módulos tildados. También puede entrar directo con su cuenta de Google: queda creada sin módulos y vos le tildás los permisos en la grilla.', actualizado: new Date() }
   ]);
 }
 
@@ -181,6 +169,7 @@ function configurarSecretos() {
     // VAPID_PUBLIC_KEY: '...',
     // WA_TOKEN: '...', WA_PHONE_ID: '...',
     // CLAVE_INGECOV: '...', CLAVE_COMPRAS: '...', CLAVE_COMBUSTIBLE: '...', CLAVE_TARJA: '...', CLAVE_ROPA: '...',
+    // GOOGLE_CLIENT_ID: '....apps.googleusercontent.com', GOOGLE_HD: 'grupoingeco.com.ar',
     // SHELL_URL: 'https://marcoskatz-cmd.github.io/app-ingeco/',
     // ADMIN_NOMBRE: 'Marcos', ADMIN_CELULAR: '549381...'
   }, false);

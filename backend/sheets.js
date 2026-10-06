@@ -6,8 +6,7 @@
  */
 
 const HOJAS = {
-  USUARIOS: ['legajo', 'nombre_visible', 'nombre_norm', 'alias_norm', 'sector', 'celular', 'pin_hash',
-    'pin_provisorio', 'activo', 'intentos_fallidos', 'bloqueado_hasta', 'creado_por', 'fecha_alta'],
+  USUARIOS: ['legajo', 'nombre_visible', 'email', 'sector', 'celular', 'activo', 'creado_por', 'fecha_alta', 'ultimo_ingreso'],
   MODULOS: ['codigo', 'nombre', 'descripcion_corta', 'url', 'tipo', 'icono', 'orden', 'activo',
     'responsable_legajo', 'responsable_celular'],
   PERMISOS: ['legajo', 'modulo', 'rol', 'otorgado_por', 'fecha'],

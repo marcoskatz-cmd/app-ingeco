@@ -56,11 +56,13 @@ a { color: var(--azul-claro); }
 .secundario { background: #e6edf3; color: var(--azul); }
 
 /* ── Login ── */
-#v-login, #v-pin { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, var(--azul) 0 40%, var(--fondo) 40%); }
+#v-login { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, var(--azul) 0 40%, var(--fondo) 40%); }
 .login-caja { background: var(--tarjeta); border-radius: 20px; padding: 24px 20px; width: 100%; max-width: 380px; box-shadow: var(--sombra); text-align: center; }
 .logo { width: 200px; max-width: 80%; height: auto; margin: 8px auto 16px; display: block; }
 .campo { display: block; text-align: left; margin: 12px 0; }
 .campo > span { display: block; font-size: .9rem; color: var(--texto-suave); margin-bottom: 4px; font-weight: 600; }
+.google-btn { display: flex; justify-content: center; min-height: 48px; margin: 16px 0 4px; }
+.chico-texto { font-size: .85rem; }
 .pin-label { margin: 16px 0 6px; font-size: .9rem; color: var(--texto-suave); font-weight: 600; }
 .pin-puntos { display: flex; justify-content: center; gap: 16px; margin: 4px 0 8px; }
 .pin-puntos i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--azul-claro); display: block; transition: background .1s; }

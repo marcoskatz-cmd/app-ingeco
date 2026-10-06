@@ -7,18 +7,12 @@ function requiereAdmin_(ctx) {
   if (!tienePermiso_(ctx.usuario.legajo, 'ADMIN')) throw new Error('Solo administradores');
 }
 
-function siguienteLegajo_() {
-  const nums = leer_('USUARIOS').map(u => Number(u.legajo)).filter(n => !isNaN(n));
-  return nums.length ? Math.max.apply(null, nums) + 1 : 1000;
-}
-
-function mensajeAcceso_(nombre, pin) {
+function mensajeAcceso_(nombre, email) {
   const url = prop_('SHELL_URL', false) || '(URL de la app)';
   return 'Hola ' + nombre.split(' ')[0] + '! Te doy acceso a la app INGECO.\n\n' +
     '1) Abrí este link en tu celular: ' + url + '\n' +
     '2) Tocá el menú del navegador y elegí "Agregar a la pantalla de inicio" (en iPhone: Compartir → Agregar a inicio).\n' +
-    '3) Entrá con tu nombre y este PIN provisorio: *' + pin + '*\n' +
-    '4) La app te va a pedir que elijas tu PIN definitivo.\n\n' +
+    '3) Tocá "Iniciar sesión con Google" y elegí tu cuenta ' + email + '.\n\n' +
     'Cualquier duda, el botón de ayuda dentro de la app te responde.';
 }
 
@@ -27,9 +21,8 @@ function listarUsuarios_(ctx) {
   const perms = leer_('PERMISOS');
   const ses = leer_('SESIONES');
   const usuarios = leer_('USUARIOS').map(u => ({
-    legajo: u.legajo, nombre_visible: u.nombre_visible, alias: u.alias_norm, sector: u.sector, celular: u.celular,
-    activo: si_(u.activo), pin_provisorio: si_(u.pin_provisorio), bloqueado_min: bloqueado_(u),
-    fecha_alta: u.fecha_alta,
+    legajo: u.legajo, nombre_visible: u.nombre_visible, email: u.email, sector: u.sector, celular: u.celular,
+    activo: si_(u.activo), fecha_alta: u.fecha_alta, ultimo_ingreso: u.ultimo_ingreso,
     modulos: perms.filter(p => String(p.legajo) === String(u.legajo)).map(p => ({ modulo: String(p.modulo).toUpperCase(), rol: p.rol || 'USUARIO' })),
     sesiones: ses.filter(s => String(s.legajo) === String(u.legajo)).length
   })).sort((a, b) => String(a.nombre_visible).localeCompare(String(b.nombre_visible)));
@@ -38,32 +31,30 @@ function listarUsuarios_(ctx) {
   return { ok: true, usuarios, modulos: modulosActivos_(), sectores: Object.keys(sectores).sort(), diagnostico: diagnostico_() };
 }
 
-/** payload: {nombre, apellido, sector, celular, modulos:[{modulo, rol}] | ["COD",...]} */
+function emailValido_(email) {
+  const e = emailNorm_(email);
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return 'Email inválido';
+  if (dominiosPermitidos_().indexOf(e.split('@')[1]) < 0) return 'Tiene que ser una cuenta de INGECO (@' + dominiosPermitidos_()[0] + ')';
+  return '';
+}
+
+/** payload: {nombre, email, sector, celular, modulos:[{modulo, rol}] | ["COD",...]} */
 function altaUsuario_(ctx, payload) {
   requiereAdmin_(ctx);
-  const nombre = String(payload.nombre || '').trim();
-  const apellido = String(payload.apellido || '').trim();
-  if (!nombre || !apellido) return { ok: false, error: 'Falta nombre o apellido' };
-  const visible = nombre + ' ' + apellido;
-  const norm = normalizar_(visible);
-  if (leer_('USUARIOS').some(u => normalizar_(u.nombre_norm) === norm && si_(u.activo))) {
-    return { ok: false, error: 'Ya existe una persona activa con ese nombre. Agregale un alias o revisá la ficha.' };
-  }
+  const visible = String(payload.nombre || '').trim();
+  const email = emailNorm_(payload.email);
+  if (!visible) return { ok: false, error: 'Falta el nombre' };
+  const err = emailValido_(email); if (err) return { ok: false, error: err };
+  if (usuarioPorEmail_(email)) return { ok: false, error: 'Ya existe una persona con ese email. Buscala en la grilla.' };
   const legajo = payload.legajo ? String(payload.legajo).trim() : String(siguienteLegajo_());
   if (leer_('USUARIOS').some(u => String(u.legajo) === legajo)) return { ok: false, error: 'El legajo ' + legajo + ' ya existe' };
-  const pin = pinAleatorio_();
   agregar_('USUARIOS', {
-    legajo, nombre_visible: visible, nombre_norm: norm, alias_norm: normalizar_(apellido + ' ' + nombre),
-    sector: String(payload.sector || '').trim(), celular: String(payload.celular || '').replace(/\D/g, ''),
-    pin_hash: hashPin_(pin, legajo), pin_provisorio: 'sí', activo: 'sí', intentos_fallidos: 0, bloqueado_hasta: '',
-    creado_por: ctx.usuario.legajo, fecha_alta: ahora_()
+    legajo, nombre_visible: visible, email, sector: String(payload.sector || '').trim(), celular: String(payload.celular || '').replace(/\D/g, ''),
+    activo: 'sí', creado_por: ctx.usuario.legajo, fecha_alta: ahora_(), ultimo_ingreso: ''
   });
   guardarPermisos_(ctx, legajo, payload.modulos || []);
   const cel = celularWA_(payload.celular);
-  return {
-    ok: true, legajo, nombre_visible: visible, pin,
-    wa_link: cel ? 'https://wa.me/' + cel + '?text=' + encodeURIComponent(mensajeAcceso_(visible, pin)) : ''
-  };
+  return { ok: true, legajo, nombre_visible: visible, email, wa_link: cel ? 'https://wa.me/' + cel + '?text=' + encodeURIComponent(mensajeAcceso_(visible, email)) : '' };
 }
 
 /** Reemplaza el set de permisos de un legajo por el indicado. */
@@ -105,7 +96,7 @@ function usuarioPorLegajo_(legajo) {
   return leer_('USUARIOS').find(u => String(u.legajo) === String(legajo)) || null;
 }
 
-/** payload: {legajo, sector?, celular?, alias?, nombre_visible?} */
+/** payload: {legajo, sector?, celular?, email?, nombre_visible?} */
 function editarUsuario_(ctx, payload) {
   requiereAdmin_(ctx);
   const u = usuarioPorLegajo_(payload.legajo);
@@ -113,21 +104,14 @@ function editarUsuario_(ctx, payload) {
   const cambios = {};
   if (payload.sector !== undefined) cambios.sector = String(payload.sector).trim();
   if (payload.celular !== undefined) cambios.celular = String(payload.celular).replace(/\D/g, '');
-  if (payload.alias !== undefined) cambios.alias_norm = String(payload.alias).split(/[|,\n]/).map(normalizar_).filter(Boolean).join('|');
-  if (payload.nombre_visible) { cambios.nombre_visible = String(payload.nombre_visible).trim(); cambios.nombre_norm = normalizar_(payload.nombre_visible); }
+  if (payload.email !== undefined) {
+    const err = emailValido_(payload.email); if (err) return { ok: false, error: err };
+    const otro = usuarioPorEmail_(payload.email); if (otro && String(otro.legajo) !== String(u.legajo)) return { ok: false, error: 'Ese email ya lo tiene ' + otro.nombre_visible };
+    cambios.email = emailNorm_(payload.email);
+  }
+  if (payload.nombre_visible) cambios.nombre_visible = String(payload.nombre_visible).trim();
   actualizar_('USUARIOS', u._fila, cambios);
   return { ok: true };
-}
-
-function resetPin_(ctx, payload) {
-  requiereAdmin_(ctx);
-  const u = usuarioPorLegajo_(payload.legajo);
-  if (!u) return { ok: false, error: 'Legajo no encontrado' };
-  const pin = pinAleatorio_();
-  actualizar_('USUARIOS', u._fila, { pin_hash: hashPin_(pin, u.legajo), pin_provisorio: 'sí', intentos_fallidos: 0, bloqueado_hasta: '' });
-  cerrarSesionesDe_(u.legajo);
-  const cel = celularWA_(u.celular);
-  return { ok: true, pin, wa_link: cel ? 'https://wa.me/' + cel + '?text=' + encodeURIComponent(mensajeAcceso_(u.nombre_visible, pin)) : '' };
 }
 
 function cerrarSesionesUsuario_(ctx, payload) {
@@ -153,8 +137,9 @@ function fichaUsuario_(ctx, payload) {
   return {
     ok: true,
     usuario: {
-      legajo: u.legajo, nombre_visible: u.nombre_visible, alias: u.alias_norm, sector: u.sector, celular: u.celular,
-      activo: si_(u.activo), pin_provisorio: si_(u.pin_provisorio), bloqueado_min: bloqueado_(u), fecha_alta: u.fecha_alta
+      legajo: u.legajo, nombre_visible: u.nombre_visible, email: u.email, sector: u.sector, celular: u.celular,
+      activo: si_(u.activo), fecha_alta: u.fecha_alta, ultimo_ingreso: u.ultimo_ingreso,
+      wa_link: u.celular ? 'https://wa.me/' + celularWA_(u.celular) + '?text=' + encodeURIComponent(mensajeAcceso_(u.nombre_visible, u.email)) : ''
     },
     modulos: modulosDe_(u.legajo),
     sesiones: sesionesDe_(u.legajo),
@@ -163,34 +148,28 @@ function fichaUsuario_(ctx, payload) {
 }
 
 /**
- * Importación masiva. payload: {texto} con filas "nombre<TAB|;>apellido<TAB|;>sector<TAB|;>celular"
- * (pegado desde una planilla). Crea sin permisos y con PIN provisorio; devuelve lista con PIN y link.
+ * Importación masiva. payload: {texto} con filas "nombre<TAB|;>email<TAB|;>sector<TAB|;>celular"
+ * (pegado desde una planilla). Crea sin permisos; devuelve lista con link de WhatsApp.
  */
 function importarUsuarios_(ctx, payload) {
   requiereAdmin_(ctx);
   const lineas = String(payload.texto || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const creados = [], errores = [];
   const existentes = {};
-  leer_('USUARIOS').forEach(u => { existentes[normalizar_(u.nombre_norm)] = true; });
+  leer_('USUARIOS').forEach(u => { existentes[emailNorm_(u.email)] = true; });
   let legajo = siguienteLegajo_();
   const filas = [];
   lineas.forEach((l, i) => {
     const partes = l.split(/\t|;/).map(s => s.trim());
-    if (partes.length < 2) { errores.push({ linea: i + 1, error: 'Faltan columnas (nombre, apellido, sector, celular)' }); return; }
-    const visible = partes[0] + ' ' + partes[1];
-    const norm = normalizar_(visible);
-    if (existentes[norm]) { errores.push({ linea: i + 1, error: visible + ' ya existe' }); return; }
-    existentes[norm] = true;
-    const pin = pinAleatorio_();
+    if (partes.length < 2) { errores.push({ linea: i + 1, error: 'Faltan columnas (nombre, email, sector, celular)' }); return; }
+    const visible = partes[0], email = emailNorm_(partes[1]);
+    const err = emailValido_(email); if (err) { errores.push({ linea: i + 1, error: visible + ': ' + err }); return; }
+    if (existentes[email]) { errores.push({ linea: i + 1, error: email + ' ya existe' }); return; }
+    existentes[email] = true;
     const lg = String(legajo++);
-    filas.push({
-      legajo: lg, nombre_visible: visible, nombre_norm: norm, alias_norm: normalizar_(partes[1] + ' ' + partes[0]),
-      sector: partes[2] || '', celular: (partes[3] || '').replace(/\D/g, ''),
-      pin_hash: hashPin_(pin, lg), pin_provisorio: 'sí', activo: 'sí', intentos_fallidos: 0, bloqueado_hasta: '',
-      creado_por: ctx.usuario.legajo, fecha_alta: ahora_()
-    });
+    filas.push({ legajo: lg, nombre_visible: visible, email, sector: partes[2] || '', celular: (partes[3] || '').replace(/\D/g, ''), activo: 'sí', creado_por: ctx.usuario.legajo, fecha_alta: ahora_(), ultimo_ingreso: '' });
     const cel = celularWA_(partes[3]);
-    creados.push({ legajo: lg, nombre_visible: visible, pin, wa_link: cel ? 'https://wa.me/' + cel + '?text=' + encodeURIComponent(mensajeAcceso_(visible, pin)) : '' });
+    creados.push({ legajo: lg, nombre_visible: visible, email, wa_link: cel ? 'https://wa.me/' + cel + '?text=' + encodeURIComponent(mensajeAcceso_(visible, email)) : '' });
   });
   agregarVarias_('USUARIOS', filas);
   return { ok: true, creados, errores };
