@@ -65,7 +65,13 @@ Prueba: con tu celular suscripto, correr `probarPush()` en el editor.
 ### 4. Shell
 
 1. En `shell/app.js` pegar la URL `/exec` del deployment en `CONFIG.BACKEND_URL`.
-2. Publicar la carpeta `shell/` en GitHub Pages (Settings → Pages → branch `main`, folder `/shell`) o en Vercel. HTTPS es obligatorio para service worker y push.
+2. El shell se publica en GitHub Pages desde la rama `gh-pages`, que es `shell/` recortada con `git subtree`. Cada vez que cambie algo del shell, después del push a `main`:
+
+```bash
+git subtree split --prefix shell -b gh-pages && git push -f origin gh-pages && git branch -D gh-pages
+```
+
+   URL: https://marcoskatz-cmd.github.io/app-ingeco/ (tarda ~1 min en reflejarse). HTTPS es obligatorio para service worker y push.
 3. Abrir en el celular, "Iniciar sesión con Google" con la cuenta de INGECO, aceptar avisos.
 
 ## Operación diaria
