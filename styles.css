@@ -2,8 +2,8 @@
    (azul / teal / ámbar; nunca rojo vs verde como única señal). */
 
 :root {
-  --azul: #0f3d5e;
-  --azul-claro: #1b6fa8;
+  --azul: #1f3a8a;
+  --azul-claro: #2b4fb3;
   --teal: #0e8a7a;
   --ambar: #d98a00;
   --alerta: #c2410c;   /* naranja oscuro, distinguible del teal */
@@ -58,7 +58,7 @@ a { color: var(--azul-claro); }
 /* ── Login ── */
 #v-login, #v-pin { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, var(--azul) 0 40%, var(--fondo) 40%); }
 .login-caja { background: var(--tarjeta); border-radius: 20px; padding: 24px 20px; width: 100%; max-width: 380px; box-shadow: var(--sombra); text-align: center; }
-.logo { width: 64px; height: 64px; margin-bottom: 4px; }
+.logo { width: 200px; max-width: 80%; height: auto; margin: 8px auto 16px; display: block; }
 .campo { display: block; text-align: left; margin: 12px 0; }
 .campo > span { display: block; font-size: .9rem; color: var(--texto-suave); margin-bottom: 4px; font-weight: 600; }
 .pin-label { margin: 16px 0 6px; font-size: .9rem; color: var(--texto-suave); font-weight: 600; }

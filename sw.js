@@ -1,6 +1,6 @@
 /* Service worker INGECO: caché del shell + recepción de push. */
-const CACHE = 'ingeco-shell-v1';
-const SHELL = ['./', './index.html', './app.js', './styles.css', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png'];
+const CACHE = 'ingeco-shell-v2';
+const SHELL = ['./', './index.html', './app.js', './styles.css', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
