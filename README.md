@@ -83,6 +83,19 @@ git subtree split --prefix shell -b gh-pages && git push -f origin gh-pages && g
 - **Bot**: Admin → Bot muestra consultas, tokens y las respuestas con pulgar abajo (qué instructivo mejorar / qué pantalla rediseñar).
 - **Aviso manual**: Admin → Enviar aviso (a todos, un sector, quienes tienen un módulo, o personas puntuales).
 
+## Módulo "Enviar avisos" (v1.1)
+
+- **Roles** (ficha de la persona en Admin → "Rol para enviar avisos"): EMISOR (sus áreas), EMISOR_GLOBAL (toda la empresa), APROBADOR. ADMIN cuenta como aprobador.
+- **Flujo**: redactar → pendiente → aprobar/rechazar → (programado) → enviado. Quien es aprobador envía directo.
+- **Destinatarios**: toda la empresa, áreas, obras o personas puntuales, con conteo en vivo. Una persona puede estar en varias áreas y en una obra.
+- **Lecturas**: por aviso, listas de quién leyó (con hora) y quién no, y botón "Reenviar a los que no leyeron" (push nuevo, sin filas nuevas).
+- **Adjuntos**: hasta 8 MB, van a la carpeta de Drive "APP INGECO - Adjuntos de avisos", compartidos solo con el dominio.
+- **Programación**: fecha y hora; un trigger cada 5 min los despacha.
+- **Personas sin cuenta**: Admin → "+ Sin cuenta" crea un link personal `#ver/<token>` (se manda por WhatsApp). Solo ven su bandeja y reciben push. Se puede regenerar o revocar desde la ficha.
+- **Áreas y obras**: pestaña "Áreas y obras" en Admin. Obras: pegar del maestro una por línea.
+- **Historial**: el 1 de enero se archiva el año anterior en una planilla "APP_INGECO archivo <año>" y se avisa al admin. "Exportar año" genera una copia sin borrar.
+- **Migración desde v1.0**: correr `migrarV2()` (idempotente). Ya corrida en producción el 6-oct-2026.
+
 ## Qué sabe el bot
 
 - Cómo usar los módulos **que esa persona tiene autorizados**, con los INSTRUCTIVOS, priorizando el módulo desde el que abrió la ayuda.
