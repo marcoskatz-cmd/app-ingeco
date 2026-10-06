@@ -23,12 +23,13 @@ function listarUsuarios_(ctx) {
   const usuarios = leer_('USUARIOS').map(u => ({
     legajo: u.legajo, nombre_visible: u.nombre_visible, email: u.email, sector: u.sector, celular: u.celular,
     activo: si_(u.activo), fecha_alta: u.fecha_alta, ultimo_ingreso: u.ultimo_ingreso,
+    tipo: u.tipo === 'lector' ? 'lector' : 'cuenta', areas: areasDe_(u), obra: String(u.obra || '').toUpperCase(), tiene_link: !!u.token_lector,
     modulos: perms.filter(p => String(p.legajo) === String(u.legajo)).map(p => ({ modulo: String(p.modulo).toUpperCase(), rol: p.rol || 'USUARIO' })),
     sesiones: ses.filter(s => String(s.legajo) === String(u.legajo)).length
   })).sort((a, b) => String(a.nombre_visible).localeCompare(String(b.nombre_visible)));
   const sectores = {};
   usuarios.forEach(u => { if (u.sector) sectores[u.sector] = true; });
-  return { ok: true, usuarios, modulos: modulosActivos_(), sectores: Object.keys(sectores).sort(), diagnostico: diagnostico_() };
+  return { ok: true, usuarios, modulos: modulosActivos_(), sectores: Object.keys(sectores).sort(), areas: areasActivas_(), obras: obrasActivas_(), diagnostico: diagnostico_() };
 }
 
 function emailValido_(email) {
@@ -50,7 +51,8 @@ function altaUsuario_(ctx, payload) {
   if (leer_('USUARIOS').some(u => String(u.legajo) === legajo)) return { ok: false, error: 'El legajo ' + legajo + ' ya existe' };
   agregar_('USUARIOS', {
     legajo, nombre_visible: visible, email, sector: String(payload.sector || '').trim(), celular: String(payload.celular || '').replace(/\D/g, ''),
-    activo: 'sí', creado_por: ctx.usuario.legajo, fecha_alta: ahora_(), ultimo_ingreso: ''
+    activo: 'sí', creado_por: ctx.usuario.legajo, fecha_alta: ahora_(), ultimo_ingreso: '',
+    tipo: 'cuenta', areas: areasTexto_(payload.areas), obra: String(payload.obra || '').toUpperCase(), token_lector: ''
   });
   guardarPermisos_(ctx, legajo, payload.modulos || []);
   const cel = celularWA_(payload.celular);
@@ -110,6 +112,8 @@ function editarUsuario_(ctx, payload) {
     cambios.email = emailNorm_(payload.email);
   }
   if (payload.nombre_visible) cambios.nombre_visible = String(payload.nombre_visible).trim();
+  if (payload.areas !== undefined) cambios.areas = areasTexto_(payload.areas);
+  if (payload.obra !== undefined) cambios.obra = String(payload.obra || '').toUpperCase();
   actualizar_('USUARIOS', u._fila, cambios);
   return { ok: true };
 }
@@ -139,7 +143,10 @@ function fichaUsuario_(ctx, payload) {
     usuario: {
       legajo: u.legajo, nombre_visible: u.nombre_visible, email: u.email, sector: u.sector, celular: u.celular,
       activo: si_(u.activo), fecha_alta: u.fecha_alta, ultimo_ingreso: u.ultimo_ingreso,
-      wa_link: u.celular ? 'https://wa.me/' + celularWA_(u.celular) + '?text=' + encodeURIComponent(mensajeAcceso_(u.nombre_visible, u.email)) : ''
+      tipo: u.tipo === 'lector' ? 'lector' : 'cuenta', areas: areasDe_(u), obra: String(u.obra || '').toUpperCase(),
+      rol_avisos: rolEn_(u.legajo, 'AVISOS') || '',
+      link_lector: u.token_lector ? linkLector_(u.token_lector) : '',
+      wa_link: u.celular ? 'https://wa.me/' + celularWA_(u.celular) + '?text=' + encodeURIComponent(u.tipo === 'lector' ? mensajeLector_(u.nombre_visible, u.token_lector) : mensajeAcceso_(u.nombre_visible, u.email)) : ''
     },
     modulos: modulosDe_(u.legajo),
     sesiones: sesionesDe_(u.legajo),
@@ -234,4 +241,115 @@ function enviarAvisoManual_(ctx, payload) {
     destinatarios: payload.destinatarios, modulo: payload.modulo || 'APP', tipo: payload.tipo || 'aviso_general',
     titulo: payload.titulo, cuerpo: payload.cuerpo, url_destino: payload.url_destino || '', prioridad: payload.prioridad || 'normal'
   });
+}
+
+// ───────────── Áreas, obras, lectores ─────────────
+
+function areasTexto_(areas) {
+  const validas = areasActivas_().map(a => a.codigo);
+  return (areas || []).map(a => String(a).toUpperCase().trim()).filter(a => validas.indexOf(a) >= 0).join('|');
+}
+
+/** payload: {codigo, nombre, orden, activo} */
+function guardarArea_(ctx, payload) {
+  requiereAdmin_(ctx);
+  const cod = String(payload.codigo || payload.nombre || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 20);
+  if (!cod) return { ok: false, error: 'Falta el nombre del área' };
+  const datos = { codigo: cod, nombre: String(payload.nombre || cod).trim(), orden: Number(payload.orden || 99), activo: payload.activo === false ? 'no' : 'sí' };
+  const ex = leer_('AREAS').find(a => String(a.codigo).toUpperCase() === cod);
+  if (ex) actualizar_('AREAS', ex._fila, datos); else agregar_('AREAS', datos);
+  return { ok: true, codigo: cod };
+}
+
+/** payload: {codigo, nombre, activo} | {texto} (una obra por línea: "codigo;nombre" o solo nombre) */
+function guardarObras_(ctx, payload) {
+  requiereAdmin_(ctx);
+  const lineas = payload.texto !== undefined ? String(payload.texto).split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+    : [String(payload.codigo || '') + ';' + String(payload.nombre || '')];
+  const existentes = {};
+  leer_('OBRAS').forEach(o => { existentes[String(o.codigo).toUpperCase()] = o; });
+  const nuevas = [];
+  let n = 0;
+  lineas.forEach(l => {
+    const partes = l.split(/\t|;/).map(x => x.trim());
+    let cod = partes.length > 1 && partes[0] ? partes[0] : partes[partes.length - 1];
+    const nombre = partes.length > 1 ? partes[1] : partes[0];
+    cod = String(cod).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30);
+    if (!cod || !nombre) return;
+    const datos = { codigo: cod, nombre, activo: payload.activo === false ? 'no' : 'sí' };
+    if (existentes[cod]) actualizar_('OBRAS', existentes[cod]._fila, datos); else { nuevas.push(datos); existentes[cod] = datos; }
+    n++;
+  });
+  agregarVarias_('OBRAS', nuevas);
+  return { ok: true, procesadas: n, nuevas: nuevas.length };
+}
+
+function tokenLector_() { return generarToken_() + generarToken_().slice(0, 11); }
+
+function linkLector_(token) { return (prop_('SHELL_URL', false) || '') + '#ver/' + token; }
+
+function mensajeLector_(nombre, token) {
+  return 'Hola ' + String(nombre).split(' ')[0] + '! Este es tu acceso a los avisos de INGECO.\n\n' +
+    '1) Abrí este link en tu celular: ' + linkLector_(token) + '\n' +
+    '2) Tocá el menú del navegador y elegí "Agregar a la pantalla de inicio" (en iPhone: Compartir → Agregar a inicio).\n' +
+    '3) Cuando te pregunte, aceptá las notificaciones.\n\n' +
+    'El link es personal: no lo compartas.';
+}
+
+/** Alta de lector sin cuenta. payload: {nombre, celular, areas, obra, sector} */
+function altaLector_(ctx, payload) {
+  requiereAdmin_(ctx);
+  const visible = String(payload.nombre || '').trim();
+  if (!visible) return { ok: false, error: 'Falta el nombre' };
+  const legajo = payload.legajo ? String(payload.legajo).trim() : String(siguienteLegajo_());
+  if (leer_('USUARIOS').some(u => String(u.legajo) === legajo)) return { ok: false, error: 'El legajo ' + legajo + ' ya existe' };
+  const token = tokenLector_();
+  agregar_('USUARIOS', {
+    legajo, nombre_visible: visible, email: '', sector: String(payload.sector || '').trim(), celular: String(payload.celular || '').replace(/\D/g, ''),
+    activo: 'sí', creado_por: ctx.usuario.legajo, fecha_alta: ahora_(), ultimo_ingreso: '',
+    tipo: 'lector', areas: areasTexto_(payload.areas), obra: String(payload.obra || '').toUpperCase(), token_lector: token
+  });
+  const cel = celularWA_(payload.celular);
+  return { ok: true, legajo, nombre_visible: visible, link: linkLector_(token), wa_link: cel ? 'https://wa.me/' + cel + '?text=' + encodeURIComponent(mensajeLector_(visible, token)) : '' };
+}
+
+/** Genera un link nuevo (el anterior deja de servir). */
+function regenerarLinkLector_(ctx, payload) {
+  requiereAdmin_(ctx);
+  const u = usuarioPorLegajo_(payload.legajo);
+  if (!u) return { ok: false, error: 'Legajo no encontrado' };
+  const token = tokenLector_();
+  const cambios = { token_lector: token };
+  if (!u.email) cambios.tipo = 'lector';
+  actualizar_('USUARIOS', u._fila, cambios);
+  const cel = celularWA_(u.celular);
+  return { ok: true, link: linkLector_(token), wa_link: cel ? 'https://wa.me/' + cel + '?text=' + encodeURIComponent(mensajeLector_(u.nombre_visible, token)) : '' };
+}
+
+/** Revoca el link y borra las suscripciones push del lector. */
+function revocarLinkLector_(ctx, payload) {
+  requiereAdmin_(ctx);
+  const u = usuarioPorLegajo_(payload.legajo);
+  if (!u) return { ok: false, error: 'Legajo no encontrado' };
+  actualizar_('USUARIOS', u._fila, { token_lector: '' });
+  leer_('SUSCRIPCIONES').filter(s => String(s.legajo) === String(u.legajo)).sort((a, b) => b._fila - a._fila).forEach(s => hoja_('SUSCRIPCIONES').deleteRow(s._fila));
+  invalidar_('SUSCRIPCIONES');
+  return { ok: true };
+}
+
+/** Exporta AVISOS + COMUNICADOS de un año a una planilla nueva en Drive (sin borrar). payload: {anio} */
+function exportarAvisos_(ctx, payload) {
+  requiereAdmin_(ctx);
+  const anio = Number(payload.anio || new Date().getFullYear());
+  const destino = SpreadsheetApp.create('APP_INGECO avisos ' + anio + ' (export ' + Utilities.formatDate(new Date(), 'America/Argentina/Tucuman', 'yyyy-MM-dd') + ')');
+  ['AVISOS', 'COMUNICADOS'].forEach(h => {
+    const filas = leer_(h).filter(r => r.fecha && new Date(r.fecha).getFullYear() === anio);
+    const enc = encabezados_(h);
+    const sh = destino.insertSheet(h);
+    sh.appendRow(enc);
+    if (filas.length) sh.getRange(2, 1, filas.length, enc.length).setValues(filas.map(r => enc.map(c => r[c] === undefined ? '' : r[c])));
+  });
+  const h1 = destino.getSheetByName('Hoja 1') || destino.getSheetByName('Sheet1');
+  if (h1) destino.deleteSheet(h1);
+  return { ok: true, url: destino.getUrl() };
 }

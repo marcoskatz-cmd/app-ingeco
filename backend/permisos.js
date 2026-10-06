@@ -63,3 +63,36 @@ function legajosDeSector_(sector) {
 }
 
 function legajosAdmin_() { return legajosConRol_('ADMIN', null); }
+
+// ───────────── Áreas y obras ─────────────
+
+function areasDe_(u) { return String(u.areas || '').split('|').map(a => a.trim().toUpperCase()).filter(Boolean); }
+
+function legajosDeArea_(area) {
+  const a = String(area).toUpperCase();
+  return leer_('USUARIOS').filter(u => si_(u.activo) && areasDe_(u).indexOf(a) >= 0).map(u => String(u.legajo));
+}
+
+function legajosDeObra_(obra) {
+  const o = String(obra).toUpperCase();
+  return leer_('USUARIOS').filter(u => si_(u.activo) && String(u.obra || '').toUpperCase() === o).map(u => String(u.legajo));
+}
+
+function areasActivas_() {
+  return leer_('AREAS').filter(a => a.codigo && si_(a.activo))
+    .map(a => ({ codigo: String(a.codigo).toUpperCase(), nombre: a.nombre || a.codigo, orden: Number(a.orden || 99) }))
+    .sort((a, b) => a.orden - b.orden);
+}
+
+function obrasActivas_() {
+  return leer_('OBRAS').filter(o => o.codigo && si_(o.activo))
+    .map(o => ({ codigo: String(o.codigo).toUpperCase(), nombre: o.nombre || o.codigo }))
+    .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+}
+
+/** Rol de una persona en el módulo AVISOS: null | EMISOR | EMISOR_GLOBAL | APROBADOR. ADMIN cuenta como APROBADOR. */
+function rolAvisos_(legajo) {
+  if (tienePermiso_(legajo, 'ADMIN')) return 'APROBADOR';
+  const r = rolEn_(legajo, 'AVISOS');
+  return ['EMISOR', 'EMISOR_GLOBAL', 'APROBADOR'].indexOf(String(r || '').toUpperCase()) >= 0 ? String(r).toUpperCase() : null;
+}

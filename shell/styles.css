@@ -63,6 +63,20 @@ a { color: var(--azul-claro); }
 .campo > span { display: block; font-size: .9rem; color: var(--texto-suave); margin-bottom: 4px; font-weight: 600; }
 .google-btn { display: flex; justify-content: center; min-height: 48px; margin: 16px 0 4px; }
 .chico-texto { font-size: .85rem; }
+.estado { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: .78rem; font-weight: 700; }
+.estado.pendiente { background: #fff6e0; color: #8a5a00; }
+.estado.programado { background: #e8eefc; color: var(--azul); }
+.estado.enviado { background: #e0f2f0; color: #0b6b5e; }
+.estado.rechazado { background: #fdebe3; color: var(--alerta); }
+.barra-lectura { height: 8px; background: #e6edf3; border-radius: 4px; overflow: hidden; margin: 6px 0 2px; }
+.barra-lectura i { display: block; height: 100%; background: var(--teal); }
+.sel-grupo { margin: 10px 0; }
+.sel-grupo h4 { margin: 0 0 4px; font-size: .9rem; color: var(--texto-suave); }
+.personas-lista { max-height: 220px; overflow-y: auto; }
+.personas-lista label { display: flex; gap: 8px; align-items: center; min-height: 40px; border-bottom: 1px solid var(--borde); }
+.personas-lista input { width: 22px; height: 22px; min-height: 22px; accent-color: var(--teal); }
+.dos-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.dos-col ul { margin: 0; padding-left: 18px; font-size: .92rem; }
 .pin-label { margin: 16px 0 6px; font-size: .9rem; color: var(--texto-suave); font-weight: 600; }
 .pin-puntos { display: flex; justify-content: center; gap: 16px; margin: 4px 0 8px; }
 .pin-puntos i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--azul-claro); display: block; transition: background .1s; }

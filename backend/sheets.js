@@ -6,13 +6,19 @@
  */
 
 const HOJAS = {
-  USUARIOS: ['legajo', 'nombre_visible', 'email', 'sector', 'celular', 'activo', 'creado_por', 'fecha_alta', 'ultimo_ingreso'],
+  USUARIOS: ['legajo', 'nombre_visible', 'email', 'sector', 'celular', 'activo', 'creado_por', 'fecha_alta', 'ultimo_ingreso',
+    'tipo', 'areas', 'obra', 'token_lector'],
+  AREAS: ['codigo', 'nombre', 'orden', 'activo'],
+  OBRAS: ['codigo', 'nombre', 'activo'],
+  COMUNICADOS: ['id', 'fecha', 'emisor_legajo', 'titulo', 'cuerpo', 'url', 'adjunto_url', 'adjunto_nombre', 'prioridad',
+    'destinatarios', 'estado', 'programado_para', 'aprobado_por', 'fecha_aprobacion', 'motivo_rechazo', 'fecha_envio',
+    'total_destinatarios', 'reenvios'],
   MODULOS: ['codigo', 'nombre', 'descripcion_corta', 'url', 'tipo', 'icono', 'orden', 'activo',
     'responsable_legajo', 'responsable_celular'],
   PERMISOS: ['legajo', 'modulo', 'rol', 'otorgado_por', 'fecha'],
   SESIONES: ['token', 'legajo', 'dispositivo', 'creada', 'ultimo_uso', 'expira'],
   AVISOS: ['id', 'fecha', 'legajo', 'modulo', 'tipo', 'titulo', 'cuerpo', 'url_destino', 'prioridad',
-    'canales_enviados', 'leido', 'fecha_leido'],
+    'canales_enviados', 'leido', 'fecha_leido', 'comunicado_id'],
   SUSCRIPCIONES: ['legajo', 'endpoint', 'p256dh', 'auth', 'dispositivo', 'creada', 'ultimo_envio_ok', 'fallos'],
   INSTRUCTIVOS: ['modulo', 'seccion', 'texto', 'actualizado'],
   CONSULTAS_BOT: ['fecha', 'legajo', 'modulo_contexto', 'pregunta', 'respuesta', 'tokens', 'util']
@@ -104,6 +110,22 @@ function actualizar_(nombre, fila, cambios) {
 function borrarFila_(nombre, fila) {
   hoja_(nombre).deleteRow(fila);
   invalidar_(nombre);
+}
+
+/** Agrega al final las columnas que falten en cada hoja (migraciones). No borra ni mueve nada. */
+function asegurarColumnas_() {
+  const agregadas = [];
+  Object.keys(HOJAS).forEach(nombre => {
+    const sh = hoja_(nombre);
+    const enc = encabezados_(nombre).filter(Boolean);
+    const faltan = HOJAS[nombre].filter(c => enc.indexOf(c) < 0);
+    if (faltan.length) {
+      sh.getRange(1, enc.length + 1, 1, faltan.length).setValues([faltan]);
+      agregadas.push(nombre + ': ' + faltan.join(', '));
+    }
+  });
+  Object.keys(_memo).forEach(k => delete _memo[k]);
+  return agregadas;
 }
 
 /** Reporta columnas faltantes o sobrantes por hoja. Lo muestra Admin. */

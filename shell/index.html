@@ -81,6 +81,31 @@
       <a id="chat-wa" class="enlace" href="#" target="_blank" rel="noopener" hidden>Hablar con Marcos por WhatsApp</a>
     </section>
 
+    <!-- AVISOS (comunicados) -->
+    <section id="v-avisos" class="vista" hidden>
+      <div id="avisos-lista-wrap">
+        <div class="fila-acciones">
+          <button id="btn-nuevo-com" class="primario">+ Nuevo aviso</button>
+        </div>
+        <div id="com-pendientes-wrap" hidden><h3>Para aprobar</h3><div id="com-pendientes" class="lista"></div></div>
+        <h3>Mis avisos</h3><div id="com-mios" class="lista"></div>
+        <div id="com-otros-wrap" hidden><h3>De otros emisores</h3><div id="com-otros" class="lista"></div></div>
+      </div>
+      <div id="com-detalle" hidden></div>
+    </section>
+
+    <!-- LECTOR (sin cuenta) -->
+    <section id="v-lector" class="vista" hidden>
+      <p id="lector-saludo" class="saludo"></p>
+      <div id="lector-banner-push" class="banner" hidden>
+        <span>Activá los avisos para que te lleguen al celular.</span>
+        <button id="btn-lector-push" class="chico">Activar avisos</button>
+      </div>
+      <div id="lector-lista" class="lista"></div>
+      <p id="lector-vacio" class="vacio" hidden>Todavía no tenés avisos.</p>
+      <p id="lector-error" class="error"></p>
+    </section>
+
     <!-- ADMIN -->
     <section id="v-admin" class="vista" hidden>
       <div id="admin-diag" class="banner alerta" hidden></div>
@@ -88,15 +113,18 @@
         <button data-tab="personas" class="activa">Personas</button>
         <button data-tab="modulos">Módulos</button>
         <button data-tab="instructivos">Instructivos</button>
+        <button data-tab="areas">Áreas y obras</button>
         <button data-tab="bot">Bot</button>
-        <button data-tab="aviso">Enviar aviso</button>
+        <button data-tab="aviso">Aviso rápido</button>
       </nav>
 
       <div id="tab-personas" class="tab">
         <div class="fila-acciones">
           <input id="admin-buscar" type="search" placeholder="Buscar persona…">
-          <button id="btn-nueva-persona" class="primario">+ Nueva persona</button>
+          <button id="btn-nueva-persona" class="primario">+ Con cuenta</button>
+          <button id="btn-nuevo-lector" class="primario">+ Sin cuenta</button>
           <button id="btn-importar" class="chico">Importar</button>
+          <button id="btn-exportar" class="chico">Exportar año</button>
         </div>
         <div id="admin-grilla" class="grilla-wrap"></div>
       </div>
@@ -112,6 +140,17 @@
           <button id="btn-nuevo-instr" class="primario">+ Sección</button>
         </div>
         <div id="admin-instr" class="lista"></div>
+      </div>
+
+      <div id="tab-areas" class="tab" hidden>
+        <h3>Áreas</h3>
+        <div id="admin-areas" class="lista"></div>
+        <div class="fila-acciones" style="margin-top:8px"><input id="area-nueva" placeholder="Nueva área (ej. Recursos Humanos)"><button id="btn-area" class="primario">Agregar</button></div>
+        <h3 style="margin-top:20px">Obras</h3>
+        <p class="sub">Pegá del maestro de obras una por línea: <b>código;nombre</b> o solo el nombre.</p>
+        <textarea id="obras-texto" rows="5" placeholder="OB-12;Ruta 38 tramo II"></textarea>
+        <div class="fila-acciones"><button id="btn-obras" class="primario">Cargar obras</button></div>
+        <div id="admin-obras" class="chips" style="margin-top:8px"></div>
       </div>
 
       <div id="tab-bot" class="tab" hidden>

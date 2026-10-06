@@ -30,7 +30,12 @@ function resolverDestinatarios_(dest, moduloDefault) {
       if (d.legajo) agregar(d.legajo);
       if (d.rol) legajosConRol_(d.modulo || moduloDefault, d.rol).forEach(agregar);
       if (d.sector) legajosDeSector_(d.sector).forEach(agregar);
+      if (d.area) legajosDeArea_(d.area).forEach(agregar);
+      if (d.areas) d.areas.forEach(a => legajosDeArea_(a).forEach(agregar));
+      if (d.obra) legajosDeObra_(d.obra).forEach(agregar);
+      if (d.obras) d.obras.forEach(o => legajosDeObra_(o).forEach(agregar));
       if (d.admin) legajosAdmin_().forEach(agregar);
+      if (d.todos) leer_('USUARIOS').forEach(u => agregar(u.legajo));
       return;
     }
     agregar(d);
@@ -76,7 +81,7 @@ function notificarInterno_(p) {
     }
     filas.push({
       id, fecha, legajo: u.legajo, modulo, tipo, titulo, cuerpo, url_destino: p.url_destino || '',
-      prioridad, canales_enviados: canales.join(','), leido: 'no', fecha_leido: ''
+      prioridad, canales_enviados: canales.join(','), leido: 'no', fecha_leido: '', comunicado_id: p.comunicado_id || ''
     });
     resultados.push({ legajo: u.legajo, id, canales });
   });
@@ -94,9 +99,11 @@ function avisarAdmin_(titulo, cuerpo) {
 
 // ───────────────────────── Bandeja ─────────────────────────
 
-function bandeja_(ctx, payload) {
-  const legajo = String(ctx.usuario.legajo);
-  const limite = Number(payload.limite || 100);
+function bandeja_(ctx, payload) { return bandejaDe_(ctx.usuario.legajo, payload); }
+
+function bandejaDe_(legajoRaw, payload) {
+  const legajo = String(legajoRaw);
+  const limite = Number((payload || {}).limite || 100);
   const avisos = leer_('AVISOS')
     .filter(a => String(a.legajo) === legajo)
     .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
@@ -110,8 +117,10 @@ function bandeja_(ctx, payload) {
   return { ok: true, avisos, sin_leer: sinLeer, total_sin_leer: Object.keys(sinLeer).reduce((s, k) => s + sinLeer[k], 0) };
 }
 
-function marcarLeido_(ctx, payload) {
-  const legajo = String(ctx.usuario.legajo);
+function marcarLeido_(ctx, payload) { return marcarLeidoDe_(ctx.usuario.legajo, payload); }
+
+function marcarLeidoDe_(legajoRaw, payload) {
+  const legajo = String(legajoRaw);
   const ids = payload.todos ? null : (payload.ids || [payload.id]).map(String);
   const ahora = ahora_();
   const sh = hoja_('AVISOS');
@@ -129,15 +138,45 @@ function marcarLeido_(ctx, payload) {
   return { ok: true, marcados: n };
 }
 
+// ───────────────────────── Lectores sin cuenta (link personal) ─────────────────────────
+
+function lectorPorToken_(token) {
+  if (!token || String(token).length < 20) return null;
+  const u = leer_('USUARIOS').find(x => x.token_lector && x.token_lector === token);
+  return (u && si_(u.activo)) ? u : null;
+}
+
+function lectorBandeja_(payload) {
+  const u = lectorPorToken_(payload.token_lector);
+  if (!u) return { ok: false, error: 'Este link ya no es válido. Pedí uno nuevo a Marcos.', revocado: true };
+  const r = bandejaDe_(u.legajo, payload);
+  actualizar_('USUARIOS', u._fila, { ultimo_ingreso: ahora_() });
+  return Object.assign(r, { nombre_visible: u.nombre_visible, legajo: u.legajo });
+}
+
+function lectorMarcarLeido_(payload) {
+  const u = lectorPorToken_(payload.token_lector);
+  if (!u) return { ok: false, error: 'Link inválido', revocado: true };
+  return marcarLeidoDe_(u.legajo, payload);
+}
+
+function lectorSuscribirPush_(payload) {
+  const u = lectorPorToken_(payload.token_lector);
+  if (!u) return { ok: false, error: 'Link inválido', revocado: true };
+  return suscribirPushDe_(u.legajo, '', payload);
+}
+
 // ───────────────────────── Web Push (relay) ─────────────────────────
 
-function suscribirPush_(ctx, payload) {
+function suscribirPush_(ctx, payload) { return suscribirPushDe_(ctx.usuario.legajo, ctx.sesion.dispositivo, payload); }
+
+function suscribirPushDe_(legajo, dispositivoSesion, payload) {
   const sub = payload.suscripcion || {};
   if (!sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return { ok: false, error: 'Suscripción incompleta' };
   const existente = leer_('SUSCRIPCIONES').find(s => s.endpoint === sub.endpoint);
   const datos = {
-    legajo: ctx.usuario.legajo, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth,
-    dispositivo: String(payload.dispositivo || ctx.sesion.dispositivo || '').slice(0, 80), fallos: 0
+    legajo, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth,
+    dispositivo: String(payload.dispositivo || dispositivoSesion || '').slice(0, 80), fallos: 0
   };
   if (existente) actualizar_('SUSCRIPCIONES', existente._fila, datos);
   else agregar_('SUSCRIPCIONES', Object.assign(datos, { creada: ahora_(), ultimo_envio_ok: '' }));

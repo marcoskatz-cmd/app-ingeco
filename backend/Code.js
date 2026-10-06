@@ -18,7 +18,10 @@ const PUBLICAS = {
   vapid: () => ({ ok: true, clave: vapidPublica_() }),
   login_google: p => loginGoogle_(p),
   validar_token: p => validarToken_(p),
-  notificar: p => notificar_(p)
+  notificar: p => notificar_(p),
+  lector_bandeja: p => lectorBandeja_(p),
+  lector_marcar_leido: p => lectorMarcarLeido_(p),
+  lector_suscribir_push: p => lectorSuscribirPush_(p)
 };
 
 const USUARIO = {
@@ -30,7 +33,16 @@ const USUARIO = {
   desuscribir_push: (ctx, p) => desuscribirPush_(ctx, p),
   ayuda: (ctx, p) => ayuda_(ctx, p),
   valorar_ayuda: (ctx, p) => valorarAyuda_(ctx, p),
-  saludo_ayuda: (ctx, p) => saludoAyuda_(ctx, p)
+  saludo_ayuda: (ctx, p) => saludoAyuda_(ctx, p),
+  // Módulo AVISOS (comunicados de personas)
+  com_catalogo: ctx => catalogoDestinatarios_(ctx),
+  com_preview: (ctx, p) => previewDestinatarios_(ctx, p),
+  com_crear: (ctx, p) => crearComunicado_(ctx, p),
+  com_listar: ctx => listarComunicados_(ctx),
+  com_detalle: (ctx, p) => detalleComunicado_(ctx, p),
+  com_aprobar: (ctx, p) => aprobarComunicado_(ctx, p),
+  com_rechazar: (ctx, p) => rechazarComunicado_(ctx, p),
+  com_reenviar: (ctx, p) => reenviarComunicado_(ctx, p)
 };
 
 const ADMIN = {
@@ -48,10 +60,16 @@ const ADMIN = {
   admin_guardar_instructivo: (ctx, p) => guardarInstructivo_(ctx, p),
   admin_stats_bot: (ctx, p) => estadisticasBot_(ctx, p),
   admin_aviso: (ctx, p) => enviarAvisoManual_(ctx, p),
+  admin_guardar_area: (ctx, p) => guardarArea_(ctx, p),
+  admin_guardar_obras: (ctx, p) => guardarObras_(ctx, p),
+  admin_alta_lector: (ctx, p) => altaLector_(ctx, p),
+  admin_link_lector: (ctx, p) => regenerarLinkLector_(ctx, p),
+  admin_revocar_lector: (ctx, p) => revocarLinkLector_(ctx, p),
+  admin_exportar: (ctx, p) => exportarAvisos_(ctx, p),
   admin_diagnostico: ctx => { requiereAdmin_(ctx); return Object.assign({ ok: true }, diagnostico_()); }
 };
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
@@ -114,6 +132,7 @@ function setup() {
       { codigo: 'COMBUSTIBLE', nombre: 'Combustible', descripcion_corta: 'Cargas de gasoil por equipo', url: '', tipo: 'iframe', icono: '⛽', orden: 3, activo: 'sí' },
       { codigo: 'TARJA', nombre: 'Tarja diaria', descripcion_corta: 'Horas y checklist de máquinas en obra', url: '', tipo: 'iframe', icono: '🕒', orden: 4, activo: 'sí' },
       { codigo: 'ROPA', nombre: 'Ropa de trabajo', descripcion_corta: 'Talles, compras y entregas de ropa', url: '', tipo: 'iframe', icono: '👷', orden: 5, activo: 'sí' },
+      { codigo: 'AVISOS', nombre: 'Enviar avisos', descripcion_corta: 'Comunicados a áreas, obras o personas', url: '#avisos', tipo: 'interno', icono: '📣', orden: 0, activo: 'sí' },
       { codigo: 'ADMIN', nombre: 'Administración de la app', descripcion_corta: 'Usuarios, permisos y avisos', url: '#admin', tipo: 'interno', icono: '⚙️', orden: 99, activo: 'sí' }
     ]);
   }
@@ -153,10 +172,12 @@ function seedInstructivos_() {
 /** Instala los disparadores: resumen diario 7:30 y limpieza de sesiones 3:00. Correr una vez. */
 function instalarTriggers() {
   ScriptApp.getProjectTriggers().forEach(t => {
-    if (['resumenDiario', 'limpiarSesiones'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
+    if (['resumenDiario', 'limpiarSesiones', 'enviarProgramados', 'archivarAnualSiCorresponde'].indexOf(t.getHandlerFunction()) >= 0) ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger('resumenDiario').timeBased().atHour(7).nearMinute(30).everyDays(1).inTimezone('America/Argentina/Tucuman').create();
   ScriptApp.newTrigger('limpiarSesiones').timeBased().atHour(3).everyDays(1).inTimezone('America/Argentina/Tucuman').create();
+  ScriptApp.newTrigger('enviarProgramados').timeBased().everyMinutes(5).create();
+  ScriptApp.newTrigger('archivarAnualSiCorresponde').timeBased().atHour(4).everyDays(1).inTimezone('America/Argentina/Tucuman').create();
   console.log('Triggers instalados');
 }
 
@@ -176,6 +197,38 @@ function configurarSecretos() {
     // ADMIN_CELULAR: '549381...'
   }, false);
   console.log(Object.keys(PropertiesService.getScriptProperties().getProperties()).join(', '));
+}
+
+/** Corre el archivo anual solo el 1 de enero. */
+function archivarAnualSiCorresponde() {
+  const hoy = Utilities.formatDate(new Date(), 'America/Argentina/Tucuman', 'MM-dd');
+  if (hoy === '01-01') archivarAnual();
+}
+
+/**
+ * Migración v2 (6-oct-2026): áreas, obras, comunicados, lectores. Idempotente.
+ * Agrega columnas nuevas, crea hojas, el módulo AVISOS, áreas iniciales y da al admin el rol APROBADOR.
+ */
+function migrarV2() {
+  const agregadas = asegurarColumnas_();
+  if (!leer_('MODULOS').some(m => String(m.codigo).toUpperCase() === 'AVISOS')) {
+    agregar_('MODULOS', { codigo: 'AVISOS', nombre: 'Enviar avisos', descripcion_corta: 'Comunicados a áreas, obras o personas', url: '#avisos', tipo: 'interno', icono: '📣', orden: 0, activo: 'sí' });
+  }
+  if (!leer_('AREAS').length) {
+    agregarVarias_('AREAS', [
+      { codigo: 'GERENCIA', nombre: 'Gerencia', orden: 1, activo: 'sí' },
+      { codigo: 'ADMINISTRACION', nombre: 'Administración', orden: 2, activo: 'sí' },
+      { codigo: 'INGENIERIA', nombre: 'Ingeniería', orden: 3, activo: 'sí' },
+      { codigo: 'COMPRAS', nombre: 'Compras', orden: 4, activo: 'sí' },
+      { codigo: 'TALLER', nombre: 'Taller', orden: 5, activo: 'sí' }
+    ]);
+  }
+  leer_('USUARIOS').forEach(u => { if (!u.tipo) actualizar_('USUARIOS', u._fila, { tipo: u.email ? 'cuenta' : 'lector' }); });
+  legajosAdmin_().forEach(l => {
+    if (!rolEn_(l, 'AVISOS')) agregar_('PERMISOS', { legajo: l, modulo: 'AVISOS', rol: 'APROBADOR', otorgado_por: 'migrarV2', fecha: ahora_() });
+  });
+  instalarTriggers();
+  return { columnas_agregadas: agregadas, diagnostico: diagnostico_() };
 }
 
 /** Prueba rápida de push a un legajo (correr desde el editor). */
