@@ -82,7 +82,29 @@ function doGet(e) {
   return json_({ ok: true, app: 'INGECO backend', version: VERSION, uso: 'POST JSON {accion, token, payload}' });
 }
 
+/**
+ * Login por redirección: Google (GIS, ux_mode=redirect) hace POST form-encoded con `credential`
+ * a esta URL. Se valida, se crea la sesión y se devuelve una página que vuelve al shell con #sesion/<token>.
+ * Más robusto que el popup en celulares y PWA instalada (la verificación en 2 pasos rompe el popup).
+ */
+function loginRedirect_(e) {
+  const shell = prop_('SHELL_URL', false) || '';
+  let destino;
+  try {
+    const r = loginGoogle_({ credential: e.parameter.credential, dispositivo: 'redirect' });
+    destino = r.ok ? shell + '#sesion/' + encodeURIComponent(r.token) : shell + '#error/' + encodeURIComponent(r.error || 'No se pudo entrar');
+  } catch (err) {
+    destino = shell + '#error/' + encodeURIComponent('Algo falló al entrar. Probá de nuevo.');
+  }
+  const html = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Entrando…</title><body style="font-family:system-ui;background:#1f3a8a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">' +
+    '<p>Entrando a INGECO…</p><script>location.replace(' + JSON.stringify(destino) + ');</script>' +
+    '<noscript><a href="' + destino.replace(/"/g, '&quot;') + '" style="color:#fff">Continuar</a></noscript></body>';
+  return HtmlService.createHtmlOutput(html).setTitle('Entrando…');
+}
+
 function doPost(e) {
+  if (e && e.parameter && e.parameter.credential && !(e.postData && /json/i.test(e.postData.type || ''))) return loginRedirect_(e);
   let req;
   try { req = JSON.parse((e.postData && e.postData.contents) || '{}'); }
   catch (err) { return json_({ ok: false, error: 'Cuerpo inválido' }); }
