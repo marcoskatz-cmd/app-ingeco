@@ -89,6 +89,14 @@ function mostrarVista(v) {
 function irA(hash) { if (location.hash !== hash) location.hash = hash; else enrutar(); }
 function enrutar() {
   const [ruta, arg] = location.hash.replace(/^#/, '').split('/');
+  if (ruta === 'sesion' && arg) {
+    // Vuelta del login por redirección: el backend ya creó la sesión.
+    S.token = decodeURIComponent(arg); localStorage.setItem('ingeco_token', S.token);
+    history.replaceState(null, '', location.pathname + '#inicio');
+    api('perfil').then(r => { if (r.ok) { guardarPerfil(r); entrar(); } else { cerrarSesionLocal(); mostrarVista('login'); $('login-error').textContent = r.error || 'No se pudo entrar'; } });
+    return;
+  }
+  if (ruta === 'error') { history.replaceState(null, '', location.pathname); mostrarVista('login'); $('login-error').textContent = decodeURIComponent(arg || 'No se pudo entrar'); return; }
   if (ruta === 'ver') { if (arg) { S.lectorToken = arg; localStorage.setItem('ingeco_lector', arg); } verLector(); return; }
   if (!S.token || !S.perfil) { if (S.lectorToken) verLector(); return; }
   switch (ruta) {
@@ -118,9 +126,10 @@ function iniciarGoogle() {
       client_id: CONFIG.GOOGLE_CLIENT_ID,
       hd: CONFIG.GOOGLE_HD,
       callback: alCredencialGoogle,
-      auto_select: true,
+      auto_select: false,
       itp_support: true,
-      ux_mode: 'popup'
+      ux_mode: 'redirect',
+      login_uri: CONFIG.BACKEND_URL
     });
     googleListo = true;
   }
@@ -896,7 +905,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
     navigator.serviceWorker.register('sw.js').catch(() => { });
     navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.tipo === 'push') refrescar(true); });
   }
-  if (location.hash.startsWith('#ver/')) { enrutar(); return; }
+  if (/^#(ver|sesion|error)\//.test(location.hash)) { enrutar(); return; }
   if (!S.token) { if (S.lectorToken) { verLector(); return; } mostrarVista('login'); return; }
   // Arranque rápido con el perfil cacheado; se valida en segundo plano.
   try { S.perfil = JSON.parse(localStorage.getItem('ingeco_perfil') || 'null'); } catch (e) { S.perfil = null; }
