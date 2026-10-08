@@ -13,7 +13,7 @@ const CONFIG = {
 const S = {
   token: localStorage.getItem('ingeco_token') || '',
   perfil: null,            // {legajo, nombre_visible, sector, modulos:[...], es_admin}
-  avisos: [], sinLeer: {}, totalSinLeer: 0,
+  avisos: null, sinLeer: {}, totalSinLeer: 0,
   moduloActual: null,
   chat: [],                // [{rol:'usuario'|'bot', texto}]
   admin: { usuarios: [], modulos: [], sectores: [], tab: 'personas' },
@@ -71,11 +71,15 @@ function mostrarVista(v) {
   const enApp = ['inicio', 'modulo', 'bandeja', 'ayuda', 'admin', 'avisos', 'lector'].includes(v);
   $('app').hidden = !enApp;
   VISTAS.forEach(x => { $('v-' + x).hidden = x !== v; });
-  $('btn-volver').hidden = v === 'inicio';
+  $('btn-volver').hidden = v === 'inicio' || v === 'lector';
   $('btn-consultar').hidden = true;
+  $('btn-refrescar').hidden = !['inicio', 'bandeja', 'lector', 'avisos'].includes(v);
   if (v !== 'modulo') { $('modulo-frame').src = 'about:blank'; S.moduloActual = null; }
   const titulos = { inicio: 'INGECO', bandeja: 'Avisos', ayuda: 'Ayuda', admin: 'Administración', avisos: 'Enviar avisos', lector: 'Avisos INGECO' };
-  if (v === 'lector') { $('btn-volver').hidden = true; $('btn-ayuda').hidden = true; $('btn-campana').hidden = true; } else { $('btn-ayuda').hidden = false; $('btn-campana').hidden = false; }
+  document.body.classList.toggle('modo-lector', v === 'lector');
+  $('nav').hidden = v === 'lector' || v === 'modulo';
+  if (S.perfil) { $('nav-enviar').hidden = !S.perfil.modulos.some(m => m.codigo === 'AVISOS'); $('nav-admin').hidden = !S.perfil.es_admin; }
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('activa', b.dataset.nav === '#' + v));
   if (titulos[v]) $('barra-titulo').textContent = titulos[v];
   if (v === 'login') { $('login-error').textContent = ''; iniciarGoogle(); }
   window.scrollTo(0, 0);
@@ -98,8 +102,12 @@ function enrutar() {
 }
 window.addEventListener('hashchange', enrutar);
 $('btn-volver').onclick = () => irA('#inicio');
-$('btn-campana').onclick = () => irA('#bandeja');
-$('btn-ayuda').onclick = () => { const m = S.moduloActual ? '/' + encodeURIComponent(S.moduloActual.codigo) : ''; irA('#ayuda' + m); };
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => { vibrar(); irA(b.dataset.nav); });
+$('btn-refrescar').onclick = async () => { vibrar(); const b = $('btn-refrescar'); b.style.transform = 'rotate(360deg)'; b.style.transition = 'transform .5s'; setTimeout(() => { b.style.transition = ''; b.style.transform = ''; }, 500); if (S.token) await refrescar(false); else if (S.lectorToken) verLector(); };
+function vibrar() { try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) { } }
+function pintarOffline(off) { $('banner-offline').hidden = !off; }
+window.addEventListener('online', () => { pintarOffline(false); if (S.token) refrescar(true); });
+window.addEventListener('offline', () => pintarOffline(true));
 
 // ───────────────────────── Login con Google ─────────────────────────
 let googleListo = false;
@@ -140,6 +148,7 @@ function cerrarSesionLocal() {
   clearInterval(S.timer);
   try { google.accounts.id.disableAutoSelect(); } catch (e) { }
 }
+$('avatar').onclick = () => $('btn-salir').click();
 $('btn-salir').onclick = async () => {
   if (!await confirmar('Cerrar sesión', 'Vas a tener que volver a poner tu nombre y PIN en este celular.', 'Cerrar sesión')) return;
   await desuscribirPush();
@@ -162,10 +171,11 @@ async function refrescar(silencioso) {
   const [p, b] = await Promise.all([api('perfil', {}, { silencioso: true }), api('bandeja', { limite: 100 }, { silencioso: true })]);
   if (p.ok) guardarPerfil(p);
   if (b.ok) { S.avisos = b.avisos; S.sinLeer = b.sin_leer || {}; S.totalSinLeer = b.total_sin_leer || 0; try { localStorage.setItem('ingeco_bandeja', JSON.stringify({ avisos: S.avisos, sinLeer: S.sinLeer, total: S.totalSinLeer })); } catch (e) { } }
-  else if (b.offline && !S.avisos.length) { try { const c = JSON.parse(localStorage.getItem('ingeco_bandeja') || 'null'); if (c) { S.avisos = c.avisos; S.sinLeer = c.sinLeer; S.totalSinLeer = c.total; } } catch (e) { } }
+  else if (b.offline && !(S.avisos || []).length) { try { const c = JSON.parse(localStorage.getItem('ingeco_bandeja') || 'null'); if (c) { S.avisos = c.avisos; S.sinLeer = c.sinLeer; S.totalSinLeer = c.total; } } catch (e) { } }
   pintarCampana();
   if (!$('v-inicio').hidden) verInicio();
   if (!$('v-bandeja').hidden) verBandeja();
+  pintarOffline(!!b.offline);
   if (!silencioso && b.offline) toast(b.error, 'mal');
 }
 
@@ -175,20 +185,49 @@ function pintarCampana() {
 }
 
 // ───────────────────────── Inicio ─────────────────────────
+const SALUDO = () => { const h = new Date().getHours(); return h < 12 ? 'Buen día' : h < 19 ? 'Buenas tardes' : 'Buenas noches'; };
 function verInicio() {
   mostrarVista('inicio');
   const p = S.perfil;
-  $('saludo').textContent = 'Hola, ' + String(p.nombre_visible).split(' ')[0];
-  const mods = p.modulos.filter(m => m.tipo !== 'interno' || m.codigo === 'ADMIN');
-  $('tarjetas').innerHTML = mods.map(m => `
-    <button class="tarjeta" data-cod="${esc(m.codigo)}">
+  const nombre = String(p.nombre_visible || '').trim();
+  $('saludo').textContent = SALUDO() + ', ' + nombre.split(' ')[0];
+  const f = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }); $('fecha-hoy').textContent = f.charAt(0).toUpperCase() + f.slice(1);
+  $('avatar').textContent = nombre.split(' ').map(x => x[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+  // Bloque "Hoy": lo que te espera
+  const sinLeer = (S.avisos || []).filter(a => !a.leido).slice(0, 3);
+  const n = S.totalSinLeer;
+  const hoy = $('hoy');
+  if (S.avisos === null) hoy.innerHTML = '<div class="skel" style="height:72px;background:rgba(255,255,255,.25)"></div>';
+  else if (!n) { hoy.className = 'hoy calma'; hoy.innerHTML = '<div class="n">✓</div><div class="t">Estás al día. No tenés avisos sin leer.</div>'; }
+  else {
+    hoy.className = 'hoy';
+    hoy.innerHTML = `<div class="n">${n}</div><div class="t">aviso${n > 1 ? 's' : ''} sin leer</div>
+      <ul>${sinLeer.map(a => `<li data-id="${esc(a.id)}">${a.prioridad === 'critica' ? '⚠️' : '•'}<b>${esc(a.titulo)}</b><small>${hora(a.fecha)}</small></li>`).join('')}</ul>
+      ${n > 3 ? '<button class="ver-todo" data-nav="#bandeja">Ver los ' + n + ' avisos ›</button>' : '<button class="ver-todo" data-nav="#bandeja">Ir a la bandeja ›</button>'}`;
+    hoy.querySelectorAll('li').forEach(li => li.onclick = () => { const a = S.avisos.find(x => x.id === li.dataset.id); marcarLeido(a); if (a.url_destino) abrirDestino(a); else irA('#bandeja'); });
+    hoy.querySelector('.ver-todo').onclick = () => irA('#bandeja');
+  }
+  // Pendientes de aprobación (solo aprobadores)
+  const pend = $('pend-aprobar');
+  const esAprobador = p.es_admin || p.modulos.some(m => m.codigo === 'AVISOS' && String(m.rol).toUpperCase() === 'APROBADOR');
+  pend.hidden = true;
+  if (esAprobador) api('com_listar', {}, { silencioso: true }).then(r => {
+    if (!r.ok || !r.pendientes.length) return;
+    pend.hidden = false;
+    pend.innerHTML = `<span style="font-size:1.6rem">📝</span><div><b>${r.pendientes.length} aviso${r.pendientes.length > 1 ? 's' : ''} para aprobar</b><br><small>${esc(r.pendientes[0].emisor)}: ${esc(r.pendientes[0].titulo)}</small></div><span style="margin-left:auto;font-size:1.3rem;opacity:.6">›</span>`;
+    pend.onclick = () => irA('#avisos/' + encodeURIComponent(r.pendientes[0].id));
+  });
+  const mods = p.modulos.filter(m => m.codigo !== 'ADMIN' && m.codigo !== 'AVISOS');
+  $('tarjetas').innerHTML = mods.map((m, i) => `
+    <button class="tarjeta c${(i % 6) + 1}" data-cod="${esc(m.codigo)}">
       <span class="ico">${esc(m.icono)}</span>
       <span class="nom">${esc(m.nombre)}</span>
       <span class="des">${esc(m.descripcion_corta || '')}</span>
       ${S.sinLeer[m.codigo] ? `<span class="badge">${S.sinLeer[m.codigo]}</span>` : ''}
     </button>`).join('');
-  $('sin-modulos').hidden = mods.length > 0;
+  $('sin-modulos').hidden = mods.length > 0 || p.es_admin;
   $('tarjetas').querySelectorAll('.tarjeta').forEach(t => t.onclick = () => {
+    vibrar();
     const m = p.modulos.find(x => x.codigo === t.dataset.cod);
     if (m.codigo === 'ADMIN') return irA('#admin');
     if (m.codigo === 'AVISOS') return irA('#avisos');
@@ -218,8 +257,9 @@ function abrirModulo(codigo) {
   $('barra-titulo').textContent = m.nombre;
   $('btn-consultar').hidden = !m.responsable_celular;
   const f = $('modulo-frame');
+  $('progreso').className = 'progreso activo';
   f.src = urlConToken(m.url);
-  f.onload = () => { try { f.contentWindow.postMessage({ tipo: 'ingeco_token', token: S.token, legajo: S.perfil.legajo, modulo: m.codigo }, '*'); } catch (e) { } };
+  f.onload = () => { $('progreso').className = 'progreso listo'; setTimeout(() => { $('progreso').className = 'progreso'; }, 700); try { f.contentWindow.postMessage({ tipo: 'ingeco_token', token: S.token, legajo: S.perfil.legajo, modulo: m.codigo }, '*'); } catch (e) { } };
   // Los avisos de este módulo se consideran vistos al abrirlo.
   if (S.sinLeer[m.codigo]) { const ids = S.avisos.filter(a => a.modulo === m.codigo && !a.leido).map(a => a.id); api('marcar_leido', { ids }, { silencioso: true }).then(() => refrescar(true)); }
 }
@@ -233,6 +273,7 @@ window.addEventListener('message', e => {
   const d = e.data || {};
   if (d.tipo === 'ingeco_pedir_token' && S.moduloActual) e.source.postMessage({ tipo: 'ingeco_token', token: S.token, legajo: S.perfil.legajo, modulo: S.moduloActual.codigo }, '*');
   if (d.tipo === 'ingeco_ayuda') irA('#ayuda/' + encodeURIComponent(S.moduloActual ? S.moduloActual.codigo : ''));
+  if (d.tipo === 'ingeco_toast') toast(String(d.texto || ''), d.clase || '');
   if (d.tipo === 'ingeco_volver') irA('#inicio');
 });
 
@@ -245,14 +286,15 @@ function fechaDia(f) {
 }
 const hora = f => new Date(f).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
+let filtroBandeja = '';
 function verBandeja() {
   mostrarVista('bandeja');
-  const filtro = $('bandeja-filtro');
+  if (S.avisos === null) { $('bandeja-lista').innerHTML = '<div class="skel" style="height:84px"></div><div class="skel" style="height:84px;margin-top:10px"></div><div class="skel" style="height:84px;margin-top:10px"></div>'; $('bandeja-chips').innerHTML = ''; return; }
   const modulos = [...new Set(S.avisos.map(a => a.modulo))];
-  filtro.hidden = S.avisos.length <= 20;
-  const sel = filtro.value;
-  filtro.innerHTML = '<option value="">Todos los módulos</option>' + modulos.map(m => `<option value="${esc(m)}" ${m === sel ? 'selected' : ''}>${esc(nombreModulo(m))}</option>`).join('');
-  const lista = S.avisos.filter(a => !filtro.value || a.modulo === filtro.value)
+  const chips = [['', 'Todos'], ['__nuevos', 'Sin leer' + (S.totalSinLeer ? ' (' + S.totalSinLeer + ')' : '')]].concat(modulos.length > 1 ? modulos.map(m => [m, nombreModulo(m)]) : []);
+  $('bandeja-chips').innerHTML = chips.map(([v, t]) => `<button data-f="${esc(v)}" class="${v === filtroBandeja ? 'activa' : ''}">${esc(t)}</button>`).join('');
+  $('bandeja-chips').querySelectorAll('button').forEach(b => b.onclick = () => { filtroBandeja = b.dataset.f; verBandeja(); });
+  const lista = S.avisos.filter(a => filtroBandeja === '__nuevos' ? !a.leido : (!filtroBandeja || a.modulo === filtroBandeja))
     .sort((a, b) => (a.leido - b.leido) || (new Date(b.fecha) - new Date(a.fecha)));
   $('bandeja-vacia').hidden = lista.length > 0;
   $('btn-todo-leido').hidden = !S.totalSinLeer;
@@ -265,7 +307,7 @@ function verBandeja() {
       <div class="cuerpo">
         <div class="titulo">${a.prioridad === 'critica' ? '⚠️ ' : ''}${esc(a.titulo)}</div>
         <div class="texto">${esc(a.cuerpo)}</div>
-        <div class="meta">${esc(nombreModulo(a.modulo))} · ${hora(a.fecha)}</div>
+        <div class="meta"><span class="mod">${esc(nombreModulo(a.modulo))}</span>${hora(a.fecha)}</div>
       </div>
       <div class="acciones">
         ${a.url_destino ? `<button data-abrir="${esc(a.id)}" aria-label="Abrir">↗</button>` : ''}
@@ -303,7 +345,6 @@ function abrirDestino(a) {
     $('modulo-frame').src = urlConToken(u); location.hash = '#modulo/' + encodeURIComponent(m.codigo);
   } else location.href = urlConToken(u);
 }
-$('bandeja-filtro').onchange = verBandeja;
 $('btn-todo-leido').onclick = async () => { await api('marcar_leido', { todos: true }); await refrescar(true); toast('Listo', 'ok'); };
 
 // ───────────────────────── Ayuda (bot) ─────────────────────────
@@ -383,7 +424,7 @@ $('btn-activar-push').onclick = async () => {
   if (p === 'granted') { await suscribirPush(); toast('Avisos activados', 'ok'); }
   else { localStorage.setItem('ingeco_push_no', '1'); $('banner-push').hidden = true; toast('Podés activarlos después desde la campana.'); }
 };
-$('btn-campana').addEventListener('click', () => { if (Notification.permission !== 'granted' && !$('campana-punto').hidden) $('btn-activar-push').click(); });
+document.querySelector('#nav [data-nav="#bandeja"]').addEventListener('click', () => { if ('Notification' in window && Notification.permission !== 'granted' && !$('campana-punto').hidden && !$('banner-push').hidden) $('btn-activar-push').click(); });
 
 // ───────────────────────── Instalación PWA ─────────────────────────
 function esIosSinInstalar() { return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone; }
@@ -813,7 +854,7 @@ async function verLector() {
     return;
   }
   $('lector-error').textContent = '';
-  $('lector-saludo').textContent = 'Hola, ' + String(r.nombre_visible).split(' ')[0];
+  $('lector-saludo').innerHTML = '<span class="hola">' + esc(SALUDO() + ', ' + String(r.nombre_visible).split(' ')[0]) + '</span><div class="fecha">' + esc(new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })) + '</div>';
   try { localStorage.setItem('ingeco_bandeja', JSON.stringify({ avisos: r.avisos, sinLeer: r.sin_leer, total: r.total_sin_leer })); } catch (e) { }
   pintarLector(r.avisos);
   if ('Notification' in window) { $('lector-banner-push').hidden = Notification.permission === 'granted' || localStorage.getItem('ingeco_push_no') === '1'; if (Notification.permission === 'granted') suscribirPushLector(); }

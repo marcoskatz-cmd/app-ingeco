@@ -131,7 +131,7 @@ function setup() {
       { codigo: 'COMPRAS', nombre: 'Pedidos de compra', descripcion_corta: 'Pedidos, órdenes de compra y autorizaciones', url: 'https://pedidos-ingeco.vercel.app/', tipo: 'link', icono: '🧾', orden: 2, activo: 'sí' },
       { codigo: 'COMBUSTIBLE', nombre: 'Combustible', descripcion_corta: 'Cargas de gasoil por equipo', url: '', tipo: 'iframe', icono: '⛽', orden: 3, activo: 'sí' },
       { codigo: 'TARJA', nombre: 'Tarja diaria', descripcion_corta: 'Horas y checklist de máquinas en obra', url: '', tipo: 'iframe', icono: '🕒', orden: 4, activo: 'sí' },
-      { codigo: 'ROPA', nombre: 'Ropa de trabajo', descripcion_corta: 'Talles, compras y entregas de ropa', url: '', tipo: 'iframe', icono: '👷', orden: 5, activo: 'sí' },
+      { codigo: 'ROPA', nombre: 'Ropa de trabajo', descripcion_corta: 'Talles, compras y entregas de ropa', url: 'https://script.google.com/macros/s/AKfycbwWPz0KiSGEmgJDGYgaBsWGJaYuIQl0dG2OfpC9yCiF6qB3xpzaUtRboDB0d7hOi3nZJw/exec', tipo: 'iframe', icono: '👷', orden: 5, activo: 'sí' },
       { codigo: 'PAVIMAX', nombre: 'PAVIMAX', descripcion_corta: 'Pedidos, entregas y stock de bolsas y emulsión', url: 'https://marcoskatz-cmd.github.io/pavimax/cargar.html', tipo: 'iframe', icono: '🧱', orden: 6, activo: 'sí' },
       { codigo: 'PAVIMAX_OP', nombre: 'PAVIMAX operario', descripcion_corta: 'Entregas y producción en planta', url: 'https://marcoskatz-cmd.github.io/pavimax/', tipo: 'iframe', icono: '🏭', orden: 7, activo: 'sí' },
       { codigo: 'AVISOS', nombre: 'Enviar avisos', descripcion_corta: 'Comunicados a áreas, obras o personas', url: '#avisos', tipo: 'interno', icono: '📣', orden: 0, activo: 'sí' },
