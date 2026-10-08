@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1f3a8a">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="INGECO">
@@ -33,15 +34,21 @@
     <h2 id="barra-titulo">INGECO</h2>
     <div class="barra-acciones">
       <button id="btn-consultar" class="icono" hidden aria-label="Consultar por WhatsApp" title="Consultar">💬</button>
-      <button id="btn-ayuda" class="icono" aria-label="Ayuda">?</button>
-      <button id="btn-campana" class="icono" aria-label="Avisos">🔔<span id="campana-n" class="badge" hidden></span><span id="campana-punto" class="punto" hidden></span></button>
+      <button id="btn-refrescar" class="icono" aria-label="Actualizar" title="Actualizar">↻</button>
     </div>
   </header>
+  <div id="progreso" class="progreso"></div>
+  <div id="banner-offline" class="banner offline" hidden style="margin:12px 16px 0"><span>Sin conexión. Te mostramos lo último que llegó.</span></div>
 
   <main id="contenido">
     <!-- INICIO -->
     <section id="v-inicio" class="vista" hidden>
-      <p id="saludo" class="saludo"></p>
+      <div class="cabecera">
+        <div><div id="saludo" class="hola"></div><div id="fecha-hoy" class="fecha"></div></div>
+        <div id="avatar" class="avatar" title="Cerrar sesión"></div>
+      </div>
+      <div id="hoy" class="hoy"></div>
+      <div id="pend-aprobar" class="pend" hidden></div>
       <div id="banner-push" class="banner" hidden>
         <span>Activá los avisos para enterarte de lo que te toca.</span>
         <button id="btn-activar-push" class="chico">Activar avisos</button>
@@ -51,8 +58,9 @@
         <button id="btn-instalar" class="chico">Instalar</button>
         <button id="btn-cerrar-instalar" class="icono chico" aria-label="Cerrar">✕</button>
       </div>
+      <div class="seccion-t">Tus sistemas</div>
       <div id="tarjetas" class="tarjetas"></div>
-      <p id="sin-modulos" class="vacio" hidden>Todavía no tenés módulos asignados.<br>Pedile acceso a Marcos.</p>
+      <p id="sin-modulos" class="vacio" hidden><span class="big">🔒</span>Todavía no tenés sistemas asignados.<br>Pedile acceso a Marcos.</p>
       <button id="btn-salir" class="enlace">Cerrar sesión en este celular</button>
     </section>
 
@@ -63,12 +71,10 @@
 
     <!-- BANDEJA -->
     <section id="v-bandeja" class="vista" hidden>
-      <div class="fila-acciones">
-        <select id="bandeja-filtro" hidden><option value="">Todos los módulos</option></select>
-        <button id="btn-todo-leido" class="chico">Marcar todo leído</button>
-      </div>
+      <div id="bandeja-chips" class="chips-filtro"></div>
+      <div class="fila-acciones"><button id="btn-todo-leido" class="chico">✓ Marcar todo leído</button></div>
       <div id="bandeja-lista" class="lista"></div>
-      <p id="bandeja-vacia" class="vacio" hidden>No tenés avisos.</p>
+      <p id="bandeja-vacia" class="vacio" hidden><span class="big">📭</span>Nada por acá.<br>Cuando te llegue un aviso, lo vas a ver en esta lista.</p>
     </section>
 
     <!-- AYUDA -->
@@ -102,7 +108,7 @@
         <button id="btn-lector-push" class="chico">Activar avisos</button>
       </div>
       <div id="lector-lista" class="lista"></div>
-      <p id="lector-vacio" class="vacio" hidden>Todavía no tenés avisos.</p>
+      <p id="lector-vacio" class="vacio" hidden><span class="big">📭</span>Todavía no tenés avisos.</p>
       <p id="lector-error" class="error"></p>
     </section>
 
@@ -174,6 +180,13 @@
       </div>
     </section>
   </main>
+  <nav id="nav" class="nav">
+    <button data-nav="#inicio"><i>⌂</i>Inicio</button>
+    <button data-nav="#bandeja"><i>🔔</i>Avisos<span id="campana-n" class="badge" hidden></span><span id="campana-punto" class="punto" hidden></span></button>
+    <button data-nav="#avisos" id="nav-enviar" hidden><i>📣</i>Enviar</button>
+    <button data-nav="#ayuda"><i>?</i>Ayuda</button>
+    <button data-nav="#admin" id="nav-admin" hidden><i>⚙</i>Admin</button>
+  </nav>
 </div>
 
 <!-- ── Modal genérico ── -->
