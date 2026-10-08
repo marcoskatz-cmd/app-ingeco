@@ -3,8 +3,20 @@
  * El shell solo mira si la fila existe; el rol lo lee cada módulo si le interesa.
  */
 
+// App nueva de combustible (8-oct-2026). Si la fila del módulo no tiene URL se
+// completa sola una vez; después manda lo que diga la planilla (editable en Admin).
+const URL_COMBUSTIBLE = 'https://script.google.com/a/macros/grupoingeco.com.ar/s/AKfycbzxtWbL6A6xsXqRBx6yGDuSYKWEBebmc68dXlkgGiU5-BesLfal03PsPxZ8sFRDrCo8Cw/exec';
+
 function modulosActivos_() {
-  return leer_('MODULOS')
+  const filas = leer_('MODULOS');
+  filas.forEach(m => {
+    if (String(m.codigo).toUpperCase() === 'COMBUSTIBLE' && !m.url) {
+      // Apps Script del dominio: se abre aparte, embebida falla con varias cuentas.
+      actualizar_('MODULOS', m._fila, { url: URL_COMBUSTIBLE, tipo: 'link' });
+      m.url = URL_COMBUSTIBLE; m.tipo = 'link';
+    }
+  });
+  return filas
     .filter(m => si_(m.activo) && m.codigo)
     .map(m => ({
       codigo: String(m.codigo).toUpperCase(),
