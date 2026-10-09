@@ -260,7 +260,9 @@ function abrirModulo(codigo) {
   const m = S.perfil.modulos.find(x => x.codigo === codigo);
   if (!m) { toast('No tenés acceso a ese módulo. Pedíselo a Marcos.', 'mal'); return irA('#inicio'); }
   if (!m.url) { toast('Ese módulo todavía no está conectado.', 'mal'); return irA('#inicio'); }
-  if (m.tipo === 'link') { location.href = urlConToken(m.url); return; }
+  // Las web apps de Apps Script no se dejan embeber cuando el usuario está logueado en Workspace
+  // (Google las redirige a /a/macros/<dominio>/ con X-Frame-Options SAMEORIGIN): siempre pestaña completa.
+  if (m.tipo === 'link' || /script\.google\.com/.test(m.url)) { location.href = urlConToken(m.url); return; }
   S.moduloActual = m;
   mostrarVista('modulo');
   $('barra-titulo').textContent = m.nombre;
