@@ -147,6 +147,52 @@ async function procesarRetornoGoogle() {
   return true;
 }
 
+
+function guardarPerfil(r) {
+  S.perfil = { legajo: r.legajo, nombre_visible: r.nombre_visible, sector: r.sector, modulos: r.modulos || [], es_admin: !!r.es_admin };
+  localStorage.setItem('ingeco_perfil', JSON.stringify(S.perfil));
+}
+function cerrarSesionLocal() {
+  S.token = ''; S.perfil = null; S.avisos = [];
+  localStorage.removeItem('ingeco_token'); localStorage.removeItem('ingeco_perfil');
+  clearInterval(S.timer);
+}
+$('avatar').onclick = () => $('btn-salir').click();
+$('btn-salir').onclick = async () => {
+  if (!await confirmar('Cerrar sesión', 'Vas a tener que volver a poner tu nombre y PIN en este celular.', 'Cerrar sesión')) return;
+  await desuscribirPush();
+  await api('cerrar_sesion');
+  cerrarSesionLocal(); mostrarVista('login'); location.hash = '';
+};
+
+function entrar() {
+  mostrarVista('inicio');
+  enrutar();
+  refrescar();
+  clearInterval(S.timer);
+  S.timer = setInterval(() => { if (document.visibilityState === 'visible') refrescar(true); }, CONFIG.REFRESCO_MS);
+  setTimeout(gestionarPush, 1500);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.token && S.perfil) refrescar(true); });
+
+/** Perfil + bandeja en una pasada (dos llamadas en paralelo). */
+async function refrescar(silencioso) {
+  const [p, b] = await Promise.all([api('perfil', {}, { silencioso: true }), api('bandeja', { limite: 100 }, { silencioso: true })]);
+  if (p.ok) guardarPerfil(p);
+  if (b.ok) { S.avisos = b.avisos; S.sinLeer = b.sin_leer || {}; S.totalSinLeer = b.total_sin_leer || 0; try { localStorage.setItem('ingeco_bandeja', JSON.stringify({ avisos: S.avisos, sinLeer: S.sinLeer, total: S.totalSinLeer })); } catch (e) { } }
+  else if (b.offline && !(S.avisos || []).length) { try { const c = JSON.parse(localStorage.getItem('ingeco_bandeja') || 'null'); if (c) { S.avisos = c.avisos; S.sinLeer = c.sinLeer; S.totalSinLeer = c.total; } } catch (e) { } }
+  pintarCampana();
+  if (!$('v-inicio').hidden) verInicio();
+  if (!$('v-bandeja').hidden) verBandeja();
+  pintarOffline(!!b.offline);
+  if (!silencioso && b.offline) toast(b.error, 'mal');
+}
+
+function pintarCampana() {
+  const n = S.totalSinLeer;
+  $('campana-n').hidden = !n; $('campana-n').textContent = n > 99 ? '99+' : n;
+}
+
 // ───────────────────────── Inicio ─────────────────────────
 const SALUDO = () => { const h = new Date().getHours(); return h < 12 ? 'Buen día' : h < 19 ? 'Buenas tardes' : 'Buenas noches'; };
 function verInicio() {
