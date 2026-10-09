@@ -98,7 +98,8 @@ function loginRedirect_(e) {
   }
   const html = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>Entrando…</title><body style="font-family:system-ui;background:#1f3a8a;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">' +
-    '<p>Entrando a INGECO…</p><script>location.replace(' + JSON.stringify(destino) + ');</script>' +
+    '<p>Entrando a INGECO…</p><p><a href="' + destino.replace(/"/g, '&quot;') + '" target="_top" style="display:inline-block;background:#fff;color:#1f3a8a;padding:14px 22px;border-radius:999px;font-weight:700;text-decoration:none">Continuar a la app</a></p>' +
+    '<script>try { window.top.location.href = ' + JSON.stringify(destino) + '; } catch (e) {}</script>' +
     '<noscript><a href="' + destino.replace(/"/g, '&quot;') + '" style="color:#fff">Continuar</a></noscript></body>';
   return HtmlService.createHtmlOutput(html).setTitle('Entrando…');
 }

@@ -117,80 +117,33 @@ function pintarOffline(off) { $('banner-offline').hidden = !off; }
 window.addEventListener('online', () => { pintarOffline(false); if (S.token) refrescar(true); });
 window.addEventListener('offline', () => pintarOffline(true));
 
-// ───────────────────────── Login con Google ─────────────────────────
-let googleListo = false;
+// ───────────────────────── Login con Google (OpenID, redirección a la propia app) ─────────────────────────
+// Sin popup ni página intermedia: Google vuelve a esta misma URL con #id_token=… y lo canjeamos por sesión.
 function iniciarGoogle() {
-  if (!window.google || !google.accounts) { setTimeout(iniciarGoogle, 300); return; }
-  if (!googleListo) {
-    google.accounts.id.initialize({
-      client_id: CONFIG.GOOGLE_CLIENT_ID,
-      hd: CONFIG.GOOGLE_HD,
-      callback: alCredencialGoogle,
-      auto_select: false,
-      itp_support: true,
-      ux_mode: 'redirect',
-      login_uri: CONFIG.BACKEND_URL
+  $('btn-google').onclick = () => {
+    const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try { sessionStorage.setItem('ingeco_nonce', nonce); } catch (e) { }
+    const p = new URLSearchParams({
+      client_id: CONFIG.GOOGLE_CLIENT_ID, redirect_uri: location.origin + location.pathname,
+      response_type: 'id_token', response_mode: 'fragment', scope: 'openid email profile',
+      nonce, prompt: 'select_account', hd: CONFIG.GOOGLE_HD
     });
-    googleListo = true;
-  }
-  google.accounts.id.renderButton($('google-btn'), {
-    type: 'standard', theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', locale: 'es', width: 280
-  });
+    location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p.toString();
+  };
 }
-async function alCredencialGoogle(resp) {
-  $('login-error').textContent = '';
-  const r = await api('login_google', { credential: resp.credential, dispositivo: dispositivo() });
-  if (!r.ok) { $('login-error').textContent = r.error; return; }
+async function procesarRetornoGoogle() {
+  const h = new URLSearchParams(location.hash.slice(1));
+  const idToken = h.get('id_token');
+  if (!idToken) { if (h.get('error')) { history.replaceState(null, '', location.pathname); mostrarVista('login'); $('login-error').textContent = 'Google no autorizó el ingreso (' + h.get('error') + ').'; return true; } return false; }
+  history.replaceState(null, '', location.pathname);
+  mostrarVista('login'); $('login-error').textContent = 'Entrando…';
+  const r = await api('login_google', { credential: idToken, dispositivo: dispositivo() });
+  if (!r.ok) { $('login-error').textContent = r.error; return true; }
   S.token = r.token; localStorage.setItem('ingeco_token', r.token);
   guardarPerfil(r);
+  location.hash = '#inicio';
   entrar();
-}
-
-
-function guardarPerfil(r) {
-  S.perfil = { legajo: r.legajo, nombre_visible: r.nombre_visible, sector: r.sector, modulos: r.modulos || [], es_admin: !!r.es_admin };
-  localStorage.setItem('ingeco_perfil', JSON.stringify(S.perfil));
-}
-function cerrarSesionLocal() {
-  S.token = ''; S.perfil = null; S.avisos = [];
-  localStorage.removeItem('ingeco_token'); localStorage.removeItem('ingeco_perfil');
-  clearInterval(S.timer);
-  try { google.accounts.id.disableAutoSelect(); } catch (e) { }
-}
-$('avatar').onclick = () => $('btn-salir').click();
-$('btn-salir').onclick = async () => {
-  if (!await confirmar('Cerrar sesión', 'Vas a tener que volver a poner tu nombre y PIN en este celular.', 'Cerrar sesión')) return;
-  await desuscribirPush();
-  await api('cerrar_sesion');
-  cerrarSesionLocal(); mostrarVista('login'); location.hash = '';
-};
-
-function entrar() {
-  mostrarVista('inicio');
-  enrutar();
-  refrescar();
-  clearInterval(S.timer);
-  S.timer = setInterval(() => { if (document.visibilityState === 'visible') refrescar(true); }, CONFIG.REFRESCO_MS);
-  setTimeout(gestionarPush, 1500);
-}
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.token && S.perfil) refrescar(true); });
-
-/** Perfil + bandeja en una pasada (dos llamadas en paralelo). */
-async function refrescar(silencioso) {
-  const [p, b] = await Promise.all([api('perfil', {}, { silencioso: true }), api('bandeja', { limite: 100 }, { silencioso: true })]);
-  if (p.ok) guardarPerfil(p);
-  if (b.ok) { S.avisos = b.avisos; S.sinLeer = b.sin_leer || {}; S.totalSinLeer = b.total_sin_leer || 0; try { localStorage.setItem('ingeco_bandeja', JSON.stringify({ avisos: S.avisos, sinLeer: S.sinLeer, total: S.totalSinLeer })); } catch (e) { } }
-  else if (b.offline && !(S.avisos || []).length) { try { const c = JSON.parse(localStorage.getItem('ingeco_bandeja') || 'null'); if (c) { S.avisos = c.avisos; S.sinLeer = c.sinLeer; S.totalSinLeer = c.total; } } catch (e) { } }
-  pintarCampana();
-  if (!$('v-inicio').hidden) verInicio();
-  if (!$('v-bandeja').hidden) verBandeja();
-  pintarOffline(!!b.offline);
-  if (!silencioso && b.offline) toast(b.error, 'mal');
-}
-
-function pintarCampana() {
-  const n = S.totalSinLeer;
-  $('campana-n').hidden = !n; $('campana-n').textContent = n > 99 ? '99+' : n;
+  return true;
 }
 
 // ───────────────────────── Inicio ─────────────────────────
@@ -908,6 +861,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
     navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.tipo === 'push') refrescar(true); });
   }
   if (/^#(ver|sesion|error)\//.test(location.hash)) { enrutar(); return; }
+  if (/[#&]id_token=|[#&]error=/.test(location.hash)) { if (await procesarRetornoGoogle()) return; }
   if (!S.token) { if (S.lectorToken) { verLector(); return; } mostrarVista('login'); return; }
   // Arranque rápido con el perfil cacheado; se valida en segundo plano.
   try { S.perfil = JSON.parse(localStorage.getItem('ingeco_perfil') || 'null'); } catch (e) { S.perfil = null; }
