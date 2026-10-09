@@ -5,6 +5,7 @@ const CONFIG = {
   BACKEND_URL: 'https://script.google.com/macros/s/AKfycbx9NN1FfOQjUjfymLXrMyd2QM6l96HP0lxY6RC7_xKsbDlO0PnwdHbaMtag54VYFor0/exec',
   GOOGLE_CLIENT_ID: '1080058000144-q7r1ncjmglg515j0a5rd2dhqu7bt0fpt.apps.googleusercontent.com',
   GOOGLE_HD: 'grupoingeco.com.ar',
+  SHELL_URL: 'https://marcoskatz-cmd.github.io/app-ingeco/',   // URL canónica registrada como redirect_uri en el cliente OAuth
   REFRESCO_MS: 3 * 60 * 1000,
   VERSION: '1.0.0'
 };
@@ -124,7 +125,7 @@ function iniciarGoogle() {
     const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
     try { sessionStorage.setItem('ingeco_nonce', nonce); } catch (e) { }
     const p = new URLSearchParams({
-      client_id: CONFIG.GOOGLE_CLIENT_ID, redirect_uri: location.origin + location.pathname,
+      client_id: CONFIG.GOOGLE_CLIENT_ID, redirect_uri: /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? location.origin + location.pathname : CONFIG.SHELL_URL,
       response_type: 'id_token', response_mode: 'fragment', scope: 'openid email profile',
       nonce, prompt: 'select_account', hd: CONFIG.GOOGLE_HD
     });
@@ -856,6 +857,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 
 // ───────────────────────── Arranque ─────────────────────────
 (async function arrancar() {
+  if (/\/index\.html$/.test(location.pathname)) { location.replace(location.pathname.replace(/index\.html$/, '') + location.search + location.hash); return; }
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => { });
     navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.tipo === 'push') refrescar(true); });
