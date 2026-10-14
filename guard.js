@@ -10,7 +10,8 @@
  *  - Si ya hay identidad guardada en esta pestaña y la persona tiene permiso para este módulo, deja pasar.
  *  - Si no hay nada (link copiado, ticket usado o vencido), tapa la página con un aviso y un botón a la app.
  *
- * Expone window.INGECO_USUARIO = {legajo, nombre_visible, email, sector, rol_en_modulo, modulos, es_admin}
+ * Expone window.INGECO_USUARIO = {legajo, nombre_visible, email, sector, rol_en_modulo, modulos, es_admin, sesion}
+ * y window.INGECO_SESION (token de sesión de módulo, 12 h) para que el backend del sistema lo verifique.
  * y dispara el evento 'ingeco:usuario' en document cuando queda resuelto. Los sistemas pueden usarlo para
  * saber quién está operando sin pedir nada.
  */
@@ -47,6 +48,9 @@
 
   function listo(u) {
     window.INGECO_USUARIO = u;
+    // Token de sesión de módulo (12 h, no consumible): el backend del sistema puede verificarlo con
+    // {accion:'validar_sesion_modulo', payload:{sesion, modulo}} contra el backend común.
+    window.INGECO_SESION = u.sesion || '';
     try { document.dispatchEvent(new CustomEvent('ingeco:usuario', { detail: u })); } catch (e) { }
   }
 
@@ -67,7 +71,7 @@
     try { history.replaceState(null, '', limpia); } catch (e) { }
     var r = canjear(tk);
     if (r && r.ok) {
-      var u = { legajo: r.legajo, nombre_visible: r.nombre_visible, email: r.email, sector: r.sector, rol_en_modulo: r.rol_en_modulo, modulos: r.modulos || [], es_admin: !!r.es_admin };
+      var u = { legajo: r.legajo, nombre_visible: r.nombre_visible, email: r.email, sector: r.sector, rol_en_modulo: r.rol_en_modulo, modulos: r.modulos || [], es_admin: !!r.es_admin, sesion: r.sesion || '' };
       if (permitido(u)) { guardar(u); listo(u); return; }
       bloquear('No tenés acceso a este sistema');
       return;
