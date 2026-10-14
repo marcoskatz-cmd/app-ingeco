@@ -187,7 +187,8 @@ small { color: var(--texto-suave); }
 .vista-chat { display: flex; flex-direction: column; height: calc(100vh - var(--barra-h) - env(safe-area-inset-top)); padding-bottom: calc(var(--nav-h) + 12px + env(safe-area-inset-bottom)); }
 .guias { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 8px; }
 .guia-mod { font-family: var(--display); font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--texto-suave); font-weight: 800; margin: 10px 0 2px; }
-.guia { background: #fff; border-radius: var(--radio); box-shadow: var(--sombra); overflow: hidden; }
+.guia { flex: none; background: #fff; border-radius: var(--radio); box-shadow: var(--sombra); overflow: hidden; }
+.guia-mod, .guias > .vacio { flex: none; }
 .guia summary { list-style: none; cursor: pointer; padding: 14px 16px; font-family: var(--display); font-weight: 700; font-size: 1.05rem; display: flex; align-items: center; gap: 10px; min-height: 48px; }
 .guia summary::-webkit-details-marker { display: none; }
 .guia summary::before { content: '›'; font-size: 1.4rem; color: var(--azul-claro); transition: transform .15s; }
