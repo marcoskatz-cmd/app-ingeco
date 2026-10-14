@@ -158,18 +158,41 @@ function validarTicket_(payload) {
   if (Date.now() - new Date(fila.creado).getTime() > TICKET_MIN * 60000) return { ok: false, error: 'El link venció. Abrí el sistema desde la app INGECO.' };
   const modulo = payload.modulo ? String(payload.modulo).toUpperCase() : null;
   if (modulo && String(fila.modulo).toUpperCase() !== modulo) return { ok: false, error: 'Este link es de otro sistema.' };
-  actualizar_('TICKETS', fila._fila, { usado: ahora_() });
+  // Sesión de módulo: token NO consumible, válido SESION_MODULO_H horas, para que el backend del módulo
+  // (p. ej. Locales Terminal) verifique cada pedido sin que el usuario vuelva a pasar por la app.
+  const sesion = generarToken_();
+  actualizar_('TICKETS', fila._fila, { usado: ahora_(), sesion });
   const u = leer_('USUARIOS').find(x => String(x.legajo) === String(fila.legajo));
   if (!u || !si_(u.activo)) return { ok: false, error: 'Usuario inactivo' };
+  return Object.assign(identidadModulo_(u, fila.modulo), { sesion });
+}
+
+const SESION_MODULO_H = 12;
+
+function identidadModulo_(u, modulo) {
   return {
     ok: true, legajo: u.legajo, nombre_visible: u.nombre_visible, email: u.email, sector: u.sector,
-    rol_en_modulo: rolEn_(u.legajo, fila.modulo), modulos: modulosDe_(u.legajo).map(m => m.codigo), es_admin: tienePermiso_(u.legajo, 'ADMIN')
+    rol_en_modulo: rolEn_(u.legajo, modulo), modulos: modulosDe_(u.legajo).map(m => m.codigo), es_admin: tienePermiso_(u.legajo, 'ADMIN')
   };
+}
+
+/** Público, no consume. POST {accion:"validar_sesion_modulo", sesion, modulo?} → identidad mientras no venza. */
+function validarSesionModulo_(payload) {
+  const s = String(payload.sesion || '');
+  if (!s) return { ok: false, error: 'Falta sesión' };
+  const fila = leer_('TICKETS').find(x => x.sesion === s);
+  if (!fila || !fila.usado) return { ok: false, error: 'Sesión inválida. Abrí el sistema desde la app INGECO.' };
+  if (Date.now() - new Date(fila.usado).getTime() > SESION_MODULO_H * 3600000) return { ok: false, error: 'La sesión venció. Abrí el sistema desde la app INGECO.' };
+  const modulo = payload.modulo ? String(payload.modulo).toUpperCase() : null;
+  const u = leer_('USUARIOS').find(x => String(x.legajo) === String(fila.legajo));
+  if (!u || !si_(u.activo)) return { ok: false, error: 'Usuario inactivo' };
+  if (modulo && !tienePermiso_(u.legajo, modulo) && !tienePermiso_(u.legajo, 'ADMIN')) return { ok: false, error: 'Sin permiso para ' + modulo };
+  return identidadModulo_(u, modulo || fila.modulo);
 }
 
 /** Limpieza (trigger nocturno): tickets de más de un día. */
 function limpiarTickets() {
-  const lim = Date.now() - 86400000;
+  const lim = Date.now() - 2 * 86400000;
   leer_('TICKETS').filter(x => x.creado && new Date(x.creado).getTime() < lim).sort((a, b) => b._fila - a._fila).forEach(x => hoja_('TICKETS').deleteRow(x._fila));
   invalidar_('TICKETS');
 }

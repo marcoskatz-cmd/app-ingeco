@@ -19,6 +19,7 @@ const PUBLICAS = {
   login_google: p => loginGoogle_(p),
   validar_token: p => validarToken_(p),
   validar_ticket: p => validarTicket_(p),
+  validar_sesion_modulo: p => validarSesionModulo_(p),
   notificar: p => notificar_(p),
   lector_bandeja: p => lectorBandeja_(p),
   lector_marcar_leido: p => lectorMarcarLeido_(p),
