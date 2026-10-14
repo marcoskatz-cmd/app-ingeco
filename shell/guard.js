@@ -32,18 +32,27 @@
   }
   function permitido(u) { return !!u && (u.es_admin || !MODULO || (u.modulos || []).indexOf(MODULO) >= 0); }
 
+  // Sin innerHTML: algunos sistemas (INGECOV) tienen CSP con Trusted Types.
+  function el(tag, estilo, texto) { var e = document.createElement(tag); if (estilo) e.setAttribute('style', estilo); if (texto) e.textContent = texto; return e; }
   function bloquear(msg) {
     var pintar = function () {
+      if (document.getElementById('ingeco-guard')) return;
       document.documentElement.style.overflow = 'hidden';
-      var d = document.createElement('div');
+      var d = el('div', 'position:fixed;inset:0;z-index:2147483647;background:#0f1f4d;color:#fff;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui,sans-serif;text-align:center');
       d.id = 'ingeco-guard';
-      d.setAttribute('style', 'position:fixed;inset:0;z-index:2147483647;background:#0f1f4d;color:#fff;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui,sans-serif;text-align:center');
-      d.innerHTML = '<div style="max-width:380px"><div style="font-size:3rem">🔒</div><h1 style="font-size:1.4rem;margin:8px 0">' + msg + '</h1>' +
-        '<p style="opacity:.8;margin:0 0 20px">Este sistema se abre desde la app INGECO, con tu cuenta.</p>' +
-        '<a href="' + APP + '" style="display:inline-block;background:#fff;color:#1f3a8a;padding:14px 24px;border-radius:999px;font-weight:700;text-decoration:none">Ir a la app INGECO</a></div>';
+      var caja = el('div', 'max-width:380px');
+      caja.appendChild(el('div', 'font-size:3rem', '🔒'));
+      caja.appendChild(el('h1', 'font-size:1.4rem;margin:8px 0', msg));
+      caja.appendChild(el('p', 'opacity:.8;margin:0 0 20px', 'Este sistema se abre desde la app INGECO, con tu cuenta.'));
+      var a = el('a', 'display:inline-block;background:#fff;color:#1f3a8a;padding:14px 24px;border-radius:999px;font-weight:700;text-decoration:none', 'Ir a la app INGECO');
+      a.href = APP;
+      caja.appendChild(a);
+      d.appendChild(caja);
       (document.body || document.documentElement).appendChild(d);
     };
     if (document.body) pintar(); else document.addEventListener('DOMContentLoaded', pintar);
+    // Por si el sistema reemplaza el body después (SPA): volver a tapar.
+    setTimeout(pintar, 1500);
   }
 
   function listo(u) {
