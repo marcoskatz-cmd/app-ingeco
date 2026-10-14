@@ -18,6 +18,7 @@ const PUBLICAS = {
   vapid: () => ({ ok: true, clave: vapidPublica_() }),
   login_google: p => loginGoogle_(p),
   validar_token: p => validarToken_(p),
+  validar_ticket: p => validarTicket_(p),
   notificar: p => notificar_(p),
   lector_bandeja: p => lectorBandeja_(p),
   lector_marcar_leido: p => lectorMarcarLeido_(p),
@@ -26,6 +27,7 @@ const PUBLICAS = {
 
 const USUARIO = {
   perfil: ctx => Object.assign({ ok: true }, perfil_(ctx.usuario)),
+  ticket: (ctx, p) => crearTicket_(ctx, p),
   cerrar_sesion: ctx => cerrarSesion_(ctx),
   bandeja: (ctx, p) => bandeja_(ctx, p),
   marcar_leido: (ctx, p) => marcarLeido_(ctx, p),

@@ -128,7 +128,48 @@ function cerrarSesionesDe_(legajo) {
 
 /** Limpieza nocturna de sesiones vencidas (trigger). */
 function limpiarSesiones() {
+  try { limpiarTickets(); } catch (e) { console.warn('limpiarTickets: ' + e); }
   const ahora = Date.now();
   leer_('SESIONES').filter(s => s.expira && new Date(s.expira).getTime() < ahora).sort((a, b) => b._fila - a._fila).forEach(s => hoja_('SESIONES').deleteRow(s._fila));
   invalidar_('SESIONES');
+}
+
+// ───────────── Tickets de un solo uso para abrir módulos ─────────────
+// El shell pide un ticket (con su sesión) y lo pone en la URL del módulo (?tk=…). El módulo lo canjea
+// una sola vez y dentro de los 5 minutos. Un link copiado no sirve: el ticket ya fue usado o venció.
+const TICKET_MIN = 5;
+
+function crearTicket_(ctx, payload) {
+  const modulo = String(payload.modulo || '').toUpperCase();
+  if (!modulo) return { ok: false, error: 'Falta módulo' };
+  if (!tienePermiso_(ctx.usuario.legajo, modulo) && !tienePermiso_(ctx.usuario.legajo, 'ADMIN')) return { ok: false, error: 'Sin permiso para ' + modulo };
+  const ticket = generarToken_();
+  agregar_('TICKETS', { ticket, legajo: ctx.usuario.legajo, modulo, creado: ahora_(), usado: '' });
+  return { ok: true, ticket };
+}
+
+/** Público. POST {accion:"validar_ticket", ticket, modulo?} → identidad del que abrió, una sola vez. */
+function validarTicket_(payload) {
+  const t = String(payload.ticket || '');
+  if (!t) return { ok: false, error: 'Falta ticket' };
+  const fila = leer_('TICKETS').find(x => x.ticket === t);
+  if (!fila) return { ok: false, error: 'Abrí este sistema desde la app INGECO.' };
+  if (fila.usado) return { ok: false, error: 'Este link ya fue usado. Abrí el sistema desde la app INGECO.' };
+  if (Date.now() - new Date(fila.creado).getTime() > TICKET_MIN * 60000) return { ok: false, error: 'El link venció. Abrí el sistema desde la app INGECO.' };
+  const modulo = payload.modulo ? String(payload.modulo).toUpperCase() : null;
+  if (modulo && String(fila.modulo).toUpperCase() !== modulo) return { ok: false, error: 'Este link es de otro sistema.' };
+  actualizar_('TICKETS', fila._fila, { usado: ahora_() });
+  const u = leer_('USUARIOS').find(x => String(x.legajo) === String(fila.legajo));
+  if (!u || !si_(u.activo)) return { ok: false, error: 'Usuario inactivo' };
+  return {
+    ok: true, legajo: u.legajo, nombre_visible: u.nombre_visible, email: u.email, sector: u.sector,
+    rol_en_modulo: rolEn_(u.legajo, fila.modulo), modulos: modulosDe_(u.legajo).map(m => m.codigo), es_admin: tienePermiso_(u.legajo, 'ADMIN')
+  };
+}
+
+/** Limpieza (trigger nocturno): tickets de más de un día. */
+function limpiarTickets() {
+  const lim = Date.now() - 86400000;
+  leer_('TICKETS').filter(x => x.creado && new Date(x.creado).getTime() < lim).sort((a, b) => b._fila - a._fila).forEach(x => hoja_('TICKETS').deleteRow(x._fila));
+  invalidar_('TICKETS');
 }

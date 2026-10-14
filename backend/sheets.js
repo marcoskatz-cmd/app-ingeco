@@ -21,6 +21,7 @@ const HOJAS = {
     'canales_enviados', 'leido', 'fecha_leido', 'comunicado_id'],
   SUSCRIPCIONES: ['legajo', 'endpoint', 'p256dh', 'auth', 'dispositivo', 'creada', 'ultimo_envio_ok', 'fallos'],
   INSTRUCTIVOS: ['modulo', 'seccion', 'texto', 'actualizado'],
+  TICKETS: ['ticket', 'legajo', 'modulo', 'creado', 'usado'],
   CONSULTAS_BOT: ['fecha', 'legajo', 'modulo_contexto', 'pregunta', 'respuesta', 'tokens', 'util']
 };
 

@@ -248,18 +248,22 @@ function verInicio() {
 }
 
 // ───────────────────────── Módulo ─────────────────────────
-function urlConToken(url) {
-  try {
-    const u = new URL(url, location.href);
-    u.searchParams.set('t', S.token);
-    u.searchParams.set('legajo', S.perfil.legajo);
-    return u.toString();
-  } catch (e) { return url + (url.includes('?') ? '&' : '?') + 't=' + encodeURIComponent(S.token); }
+function urlConTicket(url, ticket) {
+  try { const u = new URL(url, location.href); u.searchParams.set('tk', ticket); return u.toString(); }
+  catch (e) { return url + (url.includes('?') ? '&' : '?') + 'tk=' + encodeURIComponent(ticket); }
 }
-function abrirModulo(codigo) {
+/** Pide un ticket de un solo uso para abrir el módulo. Un link copiado no sirve fuera de la app. */
+async function ticketPara(codigo) {
+  const r = await api('ticket', { modulo: codigo });
+  if (!r.ok) { toast(r.error || 'No se pudo abrir', 'mal'); return null; }
+  return r.ticket;
+}
+async function abrirModulo(codigo) {
   const m = S.perfil.modulos.find(x => x.codigo === codigo);
   if (!m) { toast('No tenés acceso a ese módulo. Pedíselo a Marcos.', 'mal'); return irA('#inicio'); }
   if (!m.url) { toast('Ese módulo todavía no está conectado.', 'mal'); return irA('#inicio'); }
+  const tk = await ticketPara(m.codigo); if (!tk) return irA('#inicio');
+  const urlConToken = u => urlConTicket(u, tk);
   // Las web apps de Apps Script no se dejan embeber cuando el usuario está logueado en Workspace
   // (Google las redirige a /a/macros/<dominio>/ con X-Frame-Options SAMEORIGIN): siempre pestaña completa.
   if (m.tipo === 'link' || /script\.google\.com/.test(m.url)) { location.href = urlConToken(m.url); return; }
@@ -270,7 +274,7 @@ function abrirModulo(codigo) {
   const f = $('modulo-frame');
   $('progreso').className = 'progreso activo';
   f.src = urlConToken(m.url);
-  f.onload = () => { $('progreso').className = 'progreso listo'; setTimeout(() => { $('progreso').className = 'progreso'; }, 700); try { f.contentWindow.postMessage({ tipo: 'ingeco_token', token: S.token, legajo: S.perfil.legajo, modulo: m.codigo }, '*'); } catch (e) { } };
+  f.onload = () => { $('progreso').className = 'progreso listo'; setTimeout(() => { $('progreso').className = 'progreso'; }, 700); };
   // Los avisos de este módulo se consideran vistos al abrirlo.
   if (S.sinLeer[m.codigo]) { const ids = S.avisos.filter(a => a.modulo === m.codigo && !a.leido).map(a => a.id); api('marcar_leido', { ids }, { silencioso: true }).then(() => refrescar(true)); }
 }
@@ -282,7 +286,7 @@ $('btn-consultar').onclick = () => {
 // Mensajes desde el iframe: pedir token, pedir ayuda, mostrar toast
 window.addEventListener('message', e => {
   const d = e.data || {};
-  if (d.tipo === 'ingeco_pedir_token' && S.moduloActual) e.source.postMessage({ tipo: 'ingeco_token', token: S.token, legajo: S.perfil.legajo, modulo: S.moduloActual.codigo }, '*');
+  if (d.tipo === 'ingeco_pedir_ticket' && S.moduloActual) ticketPara(S.moduloActual.codigo).then(tk => { if (tk) e.source.postMessage({ tipo: 'ingeco_ticket', ticket: tk, modulo: S.moduloActual.codigo }, '*'); });
   if (d.tipo === 'ingeco_ayuda') irA('#ayuda/' + encodeURIComponent(S.moduloActual ? S.moduloActual.codigo : ''));
   if (d.tipo === 'ingeco_toast') toast(String(d.texto || ''), d.clase || '');
   if (d.tipo === 'ingeco_volver') irA('#inicio');
@@ -346,11 +350,14 @@ async function marcarLeido(a) {
   pintarCampana();
   await api('marcar_leido', { id: a.id }, { silencioso: true });
 }
-function abrirDestino(a) {
+async function abrirDestino(a) {
   const u = String(a.url_destino);
   if (u.startsWith('#')) return irA(u);
   const m = S.perfil.modulos.find(x => x.codigo === a.modulo);
-  if (m && m.tipo !== 'link') {
+  if (!m) { window.open(u, '_blank'); return; }
+  const tk = await ticketPara(m.codigo); if (!tk) return;
+  const urlConToken = x => urlConTicket(x, tk);
+  if (m.tipo !== 'link' && !/script\.google\.com/.test(u)) {
     // Abrir el módulo embebido en la URL exacta del ítem.
     S.moduloActual = m; mostrarVista('modulo'); $('barra-titulo').textContent = m.nombre; $('btn-consultar').hidden = !m.responsable_celular;
     $('modulo-frame').src = urlConToken(u); location.hash = '#modulo/' + encodeURIComponent(m.codigo);
