@@ -8,7 +8,7 @@
  *  - Si la URL trae ?tk=<ticket> (la app INGECO lo pone al abrir el sistema), lo canjea UNA vez contra el backend
  *    común y guarda la identidad en sessionStorage. Después limpia el parámetro de la URL.
  *  - Si ya hay identidad guardada en esta pestaña y la persona tiene permiso para este módulo, deja pasar.
- *  - Si no hay nada (link copiado, ticket usado o vencido), tapa la página con un aviso y un botón a la app.
+ *  - Si no hay nada (link copiado, ticket usado o vencido), NO bloquea: el sistema queda como era (abierto, o con su PIN).
  *
  * Expone window.INGECO_USUARIO = {legajo, nombre_visible, email, sector, rol_en_modulo, modulos, es_admin, sesion}
  * y window.INGECO_SESION (token de sesión de módulo, 12 h) para que el backend del sistema lo verifique.
@@ -32,28 +32,9 @@
   }
   function permitido(u) { return !!u && (u.es_admin || !MODULO || (u.modulos || []).indexOf(MODULO) >= 0); }
 
-  // Sin innerHTML: algunos sistemas (INGECOV) tienen CSP con Trusted Types.
-  function el(tag, estilo, texto) { var e = document.createElement(tag); if (estilo) e.setAttribute('style', estilo); if (texto) e.textContent = texto; return e; }
-  function bloquear(msg) {
-    var pintar = function () {
-      if (document.getElementById('ingeco-guard')) return;
-      document.documentElement.style.overflow = 'hidden';
-      var d = el('div', 'position:fixed;inset:0;z-index:2147483647;background:#0f1f4d;color:#fff;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui,sans-serif;text-align:center');
-      d.id = 'ingeco-guard';
-      var caja = el('div', 'max-width:380px');
-      caja.appendChild(el('div', 'font-size:3rem', '🔒'));
-      caja.appendChild(el('h1', 'font-size:1.4rem;margin:8px 0', msg));
-      caja.appendChild(el('p', 'opacity:.8;margin:0 0 20px', 'Este sistema se abre desde la app INGECO, con tu cuenta.'));
-      var a = el('a', 'display:inline-block;background:#fff;color:#1f3a8a;padding:14px 24px;border-radius:999px;font-weight:700;text-decoration:none', 'Ir a la app INGECO');
-      a.href = APP;
-      caja.appendChild(a);
-      d.appendChild(caja);
-      (document.body || document.documentElement).appendChild(d);
-    };
-    if (document.body) pintar(); else document.addEventListener('DOMContentLoaded', pintar);
-    // Por si el sistema reemplaza el body después (SPA): volver a tapar.
-    setTimeout(pintar, 1500);
-  }
+  // NO bloquea: los sistemas que eran abiertos siguen abiertos. Si no viene de la app, simplemente no hay identidad
+  // y cada sistema aplica su propio control (PIN) como siempre.
+  function bloquear(msg) { window.INGECO_USUARIO = null; window.INGECO_SESION = ''; window.INGECO_MOTIVO = msg; }
 
   function listo(u) {
     window.INGECO_USUARIO = u;
