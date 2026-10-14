@@ -37,6 +37,7 @@ const USUARIO = {
   ayuda: (ctx, p) => ayuda_(ctx, p),
   valorar_ayuda: (ctx, p) => valorarAyuda_(ctx, p),
   saludo_ayuda: (ctx, p) => saludoAyuda_(ctx, p),
+  instructivos_mios: (ctx, p) => instructivosMios_(ctx, p),
   // Módulo AVISOS (comunicados de personas)
   com_catalogo: ctx => catalogoDestinatarios_(ctx),
   com_preview: (ctx, p) => previewDestinatarios_(ctx, p),

@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="styles.css?v=12">
 </head>
 <body>
 
@@ -79,8 +79,10 @@
 
     <!-- AYUDA -->
     <section id="v-ayuda" class="vista vista-chat" hidden>
-      <div id="chat" class="chat"></div>
-      <form id="chat-form" class="chat-form">
+      <div class="tabs" style="flex:none"><button data-ayuda="guias" class="activa">📘 Guías</button><button data-ayuda="chat">💬 Preguntar</button></div>
+      <div id="guias" class="guias"></div>
+      <div id="chat" class="chat" hidden></div>
+      <form id="chat-form" class="chat-form" hidden>
         <input id="chat-input" type="text" placeholder="Escribí tu pregunta…" autocomplete="off" enterkeyhint="send">
         <button type="submit" class="primario" aria-label="Enviar">➤</button>
       </form>
@@ -136,8 +138,8 @@
       </div>
 
       <div id="tab-modulos" class="tab" hidden>
+        <div class="fila-acciones"><button id="btn-nuevo-modulo" class="primario">+ Nuevo módulo</button><button id="btn-guia-sistemas" class="chico">📘 Cómo cargar un sistema</button></div>
         <div id="admin-modulos" class="lista"></div>
-        <button id="btn-nuevo-modulo" class="primario">+ Nuevo módulo</button>
       </div>
 
       <div id="tab-instructivos" class="tab" hidden>
@@ -201,6 +203,6 @@
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

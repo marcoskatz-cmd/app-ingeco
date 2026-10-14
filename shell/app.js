@@ -367,8 +367,33 @@ $('btn-todo-leido').onclick = async () => { await api('marcar_leido', { todos: t
 
 // ───────────────────────── Ayuda (bot) ─────────────────────────
 let ayudaCtx = '';
+let ayudaTab = 'guias';
+function formatoGuia(t) {
+  // Texto plano con `código` → <code>, y URLs → links.
+  return esc(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+async function verGuias(moduloCtx) {
+  const g = $('guias');
+  g.innerHTML = '<div class="skel" style="height:56px"></div><div class="skel" style="height:56px;margin-top:10px"></div>';
+  const r = await api('instructivos_mios', {}, { silencioso: true });
+  if (!r.ok) { g.innerHTML = '<p class="vacio">No se pudieron cargar las guías.</p>'; return; }
+  const porMod = {}; r.items.forEach(i => { (porMod[i.modulo] = porMod[i.modulo] || { nombre: i.modulo_nombre, items: [] }).items.push(i); });
+  const orden = (moduloCtx ? [moduloCtx.toUpperCase()] : []).concat(r.orden.filter(m => m !== (moduloCtx || '').toUpperCase()));
+  g.innerHTML = orden.filter(m => porMod[m]).map(m => `<div class="guia-mod">${esc(porMod[m].nombre)}</div>` +
+    porMod[m].items.map((i, k) => `<details class="guia" ${moduloCtx && m === moduloCtx.toUpperCase() && k === 0 ? 'open' : ''}><summary>${esc(i.seccion || 'Instructivo')}</summary><div class="cuerpo">${formatoGuia(i.texto)}</div></details>`).join('')).join('')
+    || '<p class="vacio"><span class="big">📘</span>Todavía no hay guías cargadas para tus sistemas.</p>';
+}
+function pintarTabAyuda() {
+  document.querySelectorAll('[data-ayuda]').forEach(b => b.classList.toggle('activa', b.dataset.ayuda === ayudaTab));
+  $('guias').hidden = ayudaTab !== 'guias';
+  $('chat').hidden = ayudaTab !== 'chat'; $('chat-form').hidden = ayudaTab !== 'chat';
+  if (ayudaTab === 'chat') setTimeout(() => $('chat-input').focus(), 100);
+}
+document.querySelectorAll('[data-ayuda]').forEach(b => b.onclick = () => { ayudaTab = b.dataset.ayuda; pintarTabAyuda(); });
 async function verAyuda(moduloCtx) {
   mostrarVista('ayuda');
+  pintarTabAyuda();
+  verGuias(moduloCtx);
   const nuevoCtx = moduloCtx || '';
   if (nuevoCtx !== ayudaCtx || !S.chat.length) {
     ayudaCtx = nuevoCtx; S.chat = [];
@@ -377,7 +402,6 @@ async function verAyuda(moduloCtx) {
     if (r.wa_admin) { $('chat-wa').href = r.wa_admin; $('chat-wa').hidden = false; }
   }
   pintarChat();
-  setTimeout(() => $('chat-input').focus(), 100);
 }
 function pintarChat() {
   $('chat').innerHTML = S.chat.map((m, i) => `
@@ -670,6 +694,7 @@ async function pintarModulosAdmin() {
   $('admin-modulos').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => formModulo(r.modulos.find(m => m.codigo === b.dataset.edit)));
 }
 $('btn-nuevo-modulo').onclick = () => formModulo({});
+$('btn-guia-sistemas').onclick = () => { ayudaTab = 'guias'; irA('#ayuda/ADMIN'); };
 function formModulo(m) {
   const activo = m.activo === undefined ? true : String(m.activo).toLowerCase().startsWith('s');
   modal(`<h3>${m.codigo ? 'Editar módulo' : 'Nuevo módulo'}</h3><form id="f-mod" class="form">

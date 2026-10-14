@@ -152,6 +152,16 @@ function valorarAyuda_(ctx, payload) {
   return { ok: true };
 }
 
+/** Guías de lectura: instructivos de APP + módulos permitidos (ADMIN incluido si es admin). */
+function instructivosMios_(ctx, payload) {
+  const mods = ['APP'].concat(modulosDe_(ctx.usuario.legajo).map(m => m.codigo));
+  if (tienePermiso_(ctx.usuario.legajo, 'ADMIN') && mods.indexOf('ADMIN') < 0) mods.push('ADMIN');
+  const nombres = {}; modulosActivos_().forEach(m => { nombres[m.codigo] = m.nombre; }); nombres.APP = 'La app INGECO';
+  const items = leer_('INSTRUCTIVOS').filter(i => mods.indexOf(String(i.modulo || '').toUpperCase()) >= 0 && i.texto)
+    .map(i => ({ modulo: String(i.modulo).toUpperCase(), modulo_nombre: nombres[String(i.modulo).toUpperCase()] || i.modulo, seccion: String(i.seccion || ''), texto: String(i.texto) }));
+  return { ok: true, items, orden: mods };
+}
+
 /** Saludo inicial del chat según contexto, sin gastar tokens. */
 function saludoAyuda_(ctx, payload) {
   const mods = modulosDe_(ctx.usuario.legajo);
