@@ -104,6 +104,12 @@ git subtree split --prefix shell -b gh-pages && git push -f origin gh-pages && g
 - Datos en vivo ("cuánto stock hay"): deriva al módulo o al botón de WhatsApp. Nunca inventa.
 - Fusible: 30 consultas por persona por día.
 
+## Acceso a los sistemas (tickets y guard.js)
+
+Al tocar una tarjeta, la app pide un ticket de un solo uso (5 min) y abre el sistema con `?tk=…`. El sistema lo canjea
+una vez; un link copiado no sirve por fuera. Los sistemas estáticos solo necesitan `guard.js` en el `<head>`
+(ver `docs/integracion-modulos.md`). Pedidos de compra y Ropa canjean el ticket en su propio backend.
+
 ## Contratos para los módulos
 
 Ver `docs/integracion-modulos.md`. Resumen:

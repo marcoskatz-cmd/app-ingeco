@@ -1,5 +1,20 @@
 # Integración de los módulos existentes
 
+> **14-oct-2026 — Acceso por ticket.** La app ya no manda su token en la URL. Al abrir un módulo pide un **ticket
+> de un solo uso (5 min)** y lo pone en `?tk=…`. El módulo lo canjea con `validar_ticket` y recibe la identidad más
+> una **sesión de módulo** (`sesion`, 12 h, no consumible) que su backend puede verificar con `validar_sesion_modulo`.
+> Un link copiado y abierto por fuera no entra (ticket usado o vencido).
+>
+> **Sistemas estáticos (GitHub Pages)**: basta con `<script src="https://marcoskatz-cmd.github.io/app-ingeco/guard.js" data-modulo="CODIGO"></script>`
+> en el `<head>`. `guard.js` canjea el ticket, guarda la identidad en `sessionStorage`, expone `window.INGECO_USUARIO`
+> y `window.INGECO_SESION`, y tapa la página si no hay acceso. Ya está en INGECOV, PAVIMAX (×2), Trituración, Tarja,
+> Demarcación (×2), Baches, Licitaciones y Locales Terminal. INGECOV saltea su PIN si `INGECO_USUARIO` existe; Locales
+> Terminal manda `ingeco_sesion` en cada pedido y su backend la verifica.
+>
+> Contratos: `POST {accion:"validar_ticket", payload:{ticket, modulo}}` → `{ok, legajo, nombre_visible, email, sector, rol_en_modulo, modulos, es_admin, sesion}` (una sola vez).
+> `POST {accion:"validar_sesion_modulo", payload:{sesion, modulo}}` → lo mismo sin `sesion`, mientras no venza.
+> Lo que sigue describe el contrato anterior (`?t=` + `validar_token`), que sigue existiendo para módulos ya integrados pero no debe usarse en nuevos.
+
 Cada módulo necesita un cambio chico (aceptar el token del shell) y uno opcional (llamar a `notificar()`).
 
 ## 1. Aceptar el token (módulos Apps Script embebidos: INGECOV, Combustible, Tarja, Ropa)
