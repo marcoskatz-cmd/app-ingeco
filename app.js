@@ -372,16 +372,37 @@ function formatoGuia(t) {
   // Texto plano con `código` → <code>, y URLs → links.
   return esc(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
 }
+const GUIA_INSTALAR = `<div class="guia-mod">La app en el celular</div>
+<details class="guia" id="guia-instalar"><summary>Instalar INGECO como app (Android e iPhone)</summary><div class="cuerpo">INGECO es una app web: no se baja de Play Store ni de App Store, se instala desde el navegador en un minuto y después se abre con su ícono, a pantalla completa y con avisos.
+
+<b>Android (Chrome)</b>
+1. Abrí <a href="https://marcoskatz-cmd.github.io/app-ingeco/" target="_blank" rel="noopener">marcoskatz-cmd.github.io/app-ingeco</a> en Chrome.
+2. Si aparece el cartel "Agregá INGECO a la pantalla de inicio", tocá <b>Instalar</b> y listo.
+3. Si no aparece: tocá los tres puntos ⋮ (arriba a la derecha) → <b>"Agregar a pantalla principal"</b> o <b>"Instalar app"</b> → <b>Instalar</b>.
+4. El ícono de INGECO queda junto a las demás apps. Abrila siempre desde ahí.
+
+<b>iPhone / iPad (Safari)</b>
+1. Abrí la misma dirección en <b>Safari</b> (en iPhone solo funciona desde Safari, no desde Chrome ni desde un link de WhatsApp).
+2. Tocá el botón <b>Compartir</b> (el cuadrado con la flecha hacia arriba, abajo en el centro).
+3. Deslizá la lista y tocá <b>"Agregar a inicio"</b> (o "Agregar a pantalla de inicio").
+4. Tocá <b>Agregar</b> arriba a la derecha. El ícono queda en la pantalla de inicio.
+5. Entrá una vez desde el ícono e iniciá sesión con tu cuenta de INGECO; a partir de ahí queda logueada.
+
+<b>Si algo no sale</b>
+• Si el link se abrió desde WhatsApp o Instagram, tocá "Abrir en el navegador" primero.
+• Si ya la tenías instalada y se ve vieja, cerrala del todo y volvé a abrirla: se actualiza sola.
+• Los avisos push se activan desde la app, con el botón "Activar avisos" de la pantalla de inicio.</div></details>`;
 async function verGuias(moduloCtx) {
   const g = $('guias');
   g.innerHTML = '<div class="skel" style="height:56px"></div><div class="skel" style="height:56px;margin-top:10px"></div>';
   const r = await api('instructivos_mios', {}, { silencioso: true });
-  if (!r.ok) { g.innerHTML = '<p class="vacio">No se pudieron cargar las guías.</p>'; return; }
+  if (!r.ok) { g.innerHTML = GUIA_INSTALAR + '<p class="vacio">No se pudieron cargar las guías.</p>'; return; }
   const porMod = {}; r.items.forEach(i => { (porMod[i.modulo] = porMod[i.modulo] || { nombre: i.modulo_nombre, items: [] }).items.push(i); });
   const orden = (moduloCtx ? [moduloCtx.toUpperCase()] : []).concat(r.orden.filter(m => m !== (moduloCtx || '').toUpperCase()));
-  g.innerHTML = orden.filter(m => porMod[m]).map(m => `<div class="guia-mod">${esc(porMod[m].nombre)}</div>` +
+  g.innerHTML = GUIA_INSTALAR + (orden.filter(m => porMod[m]).map(m => `<div class="guia-mod">${esc(porMod[m].nombre)}</div>` +
     porMod[m].items.map((i, k) => `<details class="guia" ${moduloCtx && m === moduloCtx.toUpperCase() && k === 0 ? 'open' : ''}><summary>${esc(i.seccion || 'Instructivo')}</summary><div class="cuerpo">${formatoGuia(i.texto)}</div></details>`).join('')).join('')
-    || '<p class="vacio"><span class="big">📘</span>Todavía no hay guías cargadas para tus sistemas.</p>';
+    || '<p class="vacio"><span class="big">📘</span>Todavía no hay guías cargadas para tus sistemas.</p>');
+  if (location.hash.indexOf('instalar') >= 0) { const d = $('guia-instalar'); if (d) { d.open = true; d.scrollIntoView(); } }
 }
 function pintarTabAyuda() {
   document.querySelectorAll('[data-ayuda]').forEach(b => b.classList.toggle('activa', b.dataset.ayuda === ayudaTab));
