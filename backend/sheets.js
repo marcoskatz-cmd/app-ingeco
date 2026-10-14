@@ -79,7 +79,14 @@ function leer_(nombre) {
 
 function invalidar_(nombre) { delete _memo[nombre]; }
 
+/** Si el objeto trae columnas del esquema que la hoja todavía no tiene (migración), las agrega. */
+function asegurarColumnasDe_(nombre, obj) {
+  const enc = encabezados_(nombre);
+  if (Object.keys(obj).some(k => enc.indexOf(k) < 0 && (HOJAS[nombre] || []).indexOf(k) >= 0)) asegurarColumnas_();
+}
+
 function agregar_(nombre, obj) {
+  asegurarColumnasDe_(nombre, obj);
   const sh = hoja_(nombre);
   const enc = encabezados_(nombre);
   const fila = enc.map(h => (obj[h] === undefined || obj[h] === null) ? '' : obj[h]);
@@ -98,6 +105,7 @@ function agregarVarias_(nombre, objs) {
 }
 
 function actualizar_(nombre, fila, cambios) {
+  asegurarColumnasDe_(nombre, cambios);
   const sh = hoja_(nombre);
   const enc = encabezados_(nombre);
   Object.keys(cambios).forEach(k => {
