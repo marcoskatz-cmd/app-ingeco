@@ -36,6 +36,8 @@ function resolverDestinatarios_(dest, moduloDefault) {
       if (d.obras) d.obras.forEach(o => legajosDeObra_(o).forEach(agregar));
       if (d.admin) legajosAdmin_().forEach(agregar);
       if (d.con_modulo) legajosConRol_(d.con_modulo, null).forEach(agregar);   // todos los que tienen ese módulo
+      if (d.email) { const u = usuarioPorEmail_(d.email); if (u) agregar(u.legajo); }
+      if (d.emails) d.emails.forEach(em => { const u = usuarioPorEmail_(em); if (u) agregar(u.legajo); });
       if (d.todos) leer_('USUARIOS').forEach(u => agregar(u.legajo));
       return;
     }
