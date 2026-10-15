@@ -143,17 +143,25 @@ Se descartan los inactivos y se deduplica. Cada legajo recibe una fila propia en
 
 `stock_critico` · `vencimiento_doc` · `pedido_pendiente` · `aviso_general` · `seguridad`
 
-## 3. Eventos iniciales por módulo
+## 3. Qué notifica cada sistema (estado 15-oct-2026)
 
-| Módulo | Evento | Destinatarios | Prioridad |
+Todos usan el snippet `docs/IngecoAvisos.gs` (`notificarAppIngeco_(modulo, aviso)`) con su `CLAVE_<MODULO>` en Script Properties, salvo los de Vercel que tienen su propio helper. Los avisos llegan a la bandeja de la app y por push a quien tenga el módulo.
+
+| Sistema | Evento | Destinatarios | Prioridad |
 |---|---|---|---|
-| INGECOV | Service por horas vencido o a 50 h | `{rol:'TALLER'}` + responsable del equipo | normal |
-| INGECOV | Documentación a 15 y 3 días | `{sector:'Administración'}` + `{admin:true}` | critica a 3 días |
-| Compras | Pedido pendiente de aval > 48 h | `{rol:'AUTORIZANTE', modulo:'COMPRAS'}` | normal |
-| Compras | Pedido autorizado / rechazado | solicitante | normal |
-| Combustible | Carga fuera de rango | `{admin:true}` | critica |
-| Ropa | Entrega pendiente de retiro | operario | normal |
-| Shell | 3 intentos fallidos de login | ADMIN (automático) | normal |
+| Expedientes | Cada movimiento de expediente (cambio de oficina) y cada cobro | `{con_modulo:'EXPEDIENTES'}` | normal |
+| Licitaciones | Cada licitación nueva detectada por la rutina diaria | `{con_modulo:'LICITACIONES'}` | normal |
+| Pedidos de compra INGECO | OC nueva, conformada, caja chica, autorizada, pagada, devuelta, rechazada + recordatorio diario a Gerencia | por rol → área (INGENIERIA, GERENCIA, ADMINISTRACION, COMPRAS) + admin | normal |
+| Pedidos Terminal | Todo cambio de estado de una OC (mismos mails que el aviso por correo) | `{emails:[...]}` | normal |
+| INGECOV | Service a ≤ 50 h o vencido; VTV a 15 días, 3 días y vencida | TALLER / ADMINISTRACION, con `clave_unica` para no repetir | normal / critica |
+| PAVIMAX | Pedido nuevo (→ operario), entrega de tanda (→ carga), stock bajo (umbrales en STOCK!G2/G3) | `{con_modulo:'PAVIMAX_OP'}` / `{con_modulo:'PAVIMAX'}` | normal / critica |
+| Tarja Corrientes | Tarja abierta, tarja cerrada (horas), ítem del checklist con PROBLEMA | `{con_modulo:'TARJA'}`; problema también a TALLER + admin | normal / critica |
+| Trituración | Camión (entrada de bruto / salida de producto) y producción registrada | `{con_modulo:'TRITURACION'}` | normal |
+| Ropa de trabajo | Compra congelada (totales y proveedor) y cada entrega confirmada a una persona | `{con_modulo:'ROPA'}` | normal |
+| Demarcación Vial | Trabajo iniciado (foto antes) y trabajo terminado (foto después) | `{con_modulo:'DEMARCACION_MON'}` | normal |
+| Locales Terminal | Pago registrado (local, monto, medio) | `{con_modulo:'LOCALES_TERMINAL'}` | normal |
+| Baches Waze | Bache nuevo respecto de la corrida anterior (si son más de 8, un solo aviso resumen) | `{con_modulo:'BACHES'}` | normal |
+| Combustible / Traslados (apps de Bruno) | Pendiente: Bruno tiene que pegar el snippet y pedir su `CLAVE_COMBUSTIBLE` / `CLAVE_TRASLADOS` | — | — |
 
 ## Orden de migración
 
