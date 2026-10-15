@@ -18,7 +18,7 @@ const HOJAS = {
   PERMISOS: ['legajo', 'modulo', 'rol', 'otorgado_por', 'fecha'],
   SESIONES: ['token', 'legajo', 'dispositivo', 'creada', 'ultimo_uso', 'expira'],
   AVISOS: ['id', 'fecha', 'legajo', 'modulo', 'tipo', 'titulo', 'cuerpo', 'url_destino', 'prioridad',
-    'canales_enviados', 'leido', 'fecha_leido', 'comunicado_id'],
+    'canales_enviados', 'leido', 'fecha_leido', 'comunicado_id', 'clave_unica'],
   SUSCRIPCIONES: ['legajo', 'endpoint', 'p256dh', 'auth', 'dispositivo', 'creada', 'ultimo_envio_ok', 'fallos'],
   INSTRUCTIVOS: ['modulo', 'seccion', 'texto', 'actualizado'],
   TICKETS: ['ticket', 'legajo', 'modulo', 'creado', 'usado', 'sesion'],

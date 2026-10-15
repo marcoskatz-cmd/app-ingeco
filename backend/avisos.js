@@ -35,6 +35,7 @@ function resolverDestinatarios_(dest, moduloDefault) {
       if (d.obra) legajosDeObra_(d.obra).forEach(agregar);
       if (d.obras) d.obras.forEach(o => legajosDeObra_(o).forEach(agregar));
       if (d.admin) legajosAdmin_().forEach(agregar);
+      if (d.con_modulo) legajosConRol_(d.con_modulo, null).forEach(agregar);   // todos los que tienen ese módulo
       if (d.todos) leer_('USUARIOS').forEach(u => agregar(u.legajo));
       return;
     }
@@ -66,6 +67,13 @@ function notificarInterno_(p) {
 
   const usuarios = resolverDestinatarios_(p.destinatarios, modulo);
   if (!usuarios.length) return { ok: false, error: 'Ningún destinatario válido' };
+  // clave_unica: el mismo evento (p. ej. "VTV de EQ-12 vence en 3 días") no se repite si ya se avisó en los últimos N días.
+  const claveUnica = p.clave_unica ? String(p.clave_unica).slice(0, 120) : '';
+  if (claveUnica) {
+    const dias = Number(p.dias_unica || 30);
+    const desde = Date.now() - dias * 86400000;
+    if (leer_('AVISOS').some(a => a.clave_unica === claveUnica && a.fecha && new Date(a.fecha).getTime() >= desde)) return { ok: true, repetido: true, avisos: [] };
+  }
 
   const fecha = ahora_();
   const filas = [];
@@ -81,7 +89,7 @@ function notificarInterno_(p) {
     }
     filas.push({
       id, fecha, legajo: u.legajo, modulo, tipo, titulo, cuerpo, url_destino: p.url_destino || '',
-      prioridad, canales_enviados: canales.join(','), leido: 'no', fecha_leido: '', comunicado_id: p.comunicado_id || ''
+      prioridad, canales_enviados: canales.join(','), leido: 'no', fecha_leido: '', comunicado_id: p.comunicado_id || '', clave_unica: claveUnica
     });
     resultados.push({ legajo: u.legajo, id, canales });
   });
