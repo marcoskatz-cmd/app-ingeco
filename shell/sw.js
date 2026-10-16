@@ -1,6 +1,6 @@
 /* Service worker INGECO: caché del shell + recepción de push. */
-const CACHE = 'ingeco-shell-v15';
-const SHELL = ['./', './index.html', './app.js', './styles.css', './manifest.json', './icon-192.png', './icon-512.png'];
+const CACHE = 'ingeco-shell-v16';
+const SHELL = ['./', './index.html', './app.js', './styles.css', './manifest.json', './icon-192.png', './icon-512.png', './logo.png', './logo-pavimax.png', './logo-terminal.png'];
 
 self.addEventListener('install', e => {
   // cache:'reload' salta la caché HTTP del navegador (GitHub Pages manda max-age=600) para precachear lo último.
