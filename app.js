@@ -80,7 +80,8 @@ function mostrarVista(v) {
   const titulos = { inicio: 'INGECO', bandeja: 'Avisos', ayuda: 'Ayuda', admin: 'Administración', avisos: 'Enviar avisos', lector: 'Avisos INGECO' };
   document.body.classList.toggle('modo-lector', v === 'lector');
   document.body.classList.toggle('en-inicio', v === 'inicio');
-  $('nav').hidden = v === 'lector' || v === 'modulo';
+  document.body.classList.toggle('en-modulo', v === 'modulo');
+  $('nav').hidden = v === 'lector' || (v === 'modulo' && !matchMedia('(min-width: 900px)').matches);
   if (S.perfil) { $('nav-enviar').hidden = !S.perfil.modulos.some(m => m.codigo === 'AVISOS'); $('nav-admin').hidden = !S.perfil.es_admin; }
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('activa', b.dataset.nav === '#' + v));
   if (titulos[v]) $('barra-titulo').textContent = titulos[v];

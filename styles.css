@@ -311,12 +311,15 @@ body.modo-lector .toast { bottom: 24px; }
   .barra { padding-left: 24px; }
   .barra-logo { display: none !important; } body.en-inicio #barra-titulo { display: block; }
   .vista { max-width: 1040px; padding: 24px 32px 48px; }
+  .vista-llena { max-width: none; padding: 0; }
   .hero { padding: 26px 28px 20px; }
   .hero .hola { font-size: 1.7rem; }
   .tiles { grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 10px 6px; }
   .tile .lbl { max-width: 110px; }
   .vista-chat { height: calc(100vh - var(--barra-h)); padding-bottom: 24px; }
-  #modulo-frame { height: calc(100vh - var(--barra-h)); }
+  #modulo-frame { height: calc(100vh - var(--barra-h)); background: var(--fondo); }
+  body.en-modulo .barra { border-bottom-color: var(--linea); }
+  body.en-modulo #contenido { background: var(--fondo); }
   .toast { bottom: 28px; left: calc(50% + var(--nav-w) / 2); }
   .modal { padding-left: var(--nav-w); }
   .tile, .aviso, .feed-item, .guia summary, .hoy { cursor: pointer; }
