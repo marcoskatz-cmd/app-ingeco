@@ -140,6 +140,9 @@ function asegurarColumnas_() {
 /** Reporta columnas faltantes o sobrantes por hoja. Lo muestra Admin. */
 function diagnostico_() {
   const problemas = [];
+  // Primero se agregan solas las columnas nuevas del esquema (migración automática); después se revisa lo que no se puede arreglar solo.
+  let agregadas = [];
+  try { agregadas = asegurarColumnas_(); } catch (e) { problemas.push({ hoja: '-', problema: 'No se pudieron agregar columnas: ' + e }); }
   Object.keys(HOJAS).forEach(nombre => {
     const sh = ss_().getSheetByName(nombre);
     if (!sh) { problemas.push({ hoja: nombre, problema: 'La hoja no existe (se crea sola al primer uso)' }); return; }
@@ -147,7 +150,7 @@ function diagnostico_() {
     HOJAS[nombre].forEach(c => { if (enc.indexOf(c) < 0) problemas.push({ hoja: nombre, problema: 'Falta la columna "' + c + '"' }); });
     enc.forEach(c => { if (HOJAS[nombre].indexOf(c) < 0) problemas.push({ hoja: nombre, problema: 'Columna desconocida "' + c + '" (¿se renombró?)' }); });
   });
-  return { ok: problemas.length === 0, problemas, planilla: ss_().getName(), fecha: new Date() };
+  return { ok: problemas.length === 0, problemas, agregadas, planilla: ss_().getName(), fecha: new Date() };
 }
 
 function ahora_() { return new Date(); }
