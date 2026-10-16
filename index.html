@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=15">
+<link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
 
@@ -31,7 +31,7 @@
 <div id="app" hidden>
   <header class="barra">
     <button id="btn-volver" class="icono" hidden aria-label="Volver"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-    <h2 id="barra-titulo">INGECO</h2>
+    <img id="barra-logo" src="logo.png" alt="INGECO" class="barra-logo"><h2 id="barra-titulo">INGECO</h2>
     <div class="barra-acciones">
       <button id="btn-consultar" class="icono" hidden aria-label="Consultar por WhatsApp" title="Consultar"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.2L4 21l1.8-5.4A8 8 0 1 1 21 12z"/></svg></button>
       <button id="btn-refrescar" class="icono" aria-label="Actualizar" title="Actualizar"><svg class="i" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg></button>
@@ -43,11 +43,14 @@
   <main id="contenido">
     <!-- INICIO -->
     <section id="v-inicio" class="vista" hidden>
-      <div class="cabecera">
-        <div><div id="saludo" class="hola"></div><div id="fecha-hoy" class="fecha"></div></div>
-        <div id="avatar" class="avatar" title="Cerrar sesión"></div>
+      <div class="hero">
+        <div class="hero-top">
+          <div><div id="saludo" class="hola"></div><div id="fecha-hoy" class="fecha"></div></div>
+          <div id="avatar" class="avatar" title="Cerrar sesión"></div>
+        </div>
+        <div id="hoy" class="hoy"></div>
+        <div id="hero-acciones" class="hero-acciones"></div>
       </div>
-      <div id="hoy" class="hoy"></div>
       <div id="pend-aprobar" class="pend" hidden></div>
       <div id="banner-push" class="banner" hidden>
         <span>Activá los avisos para enterarte de lo que te toca.</span>
@@ -60,6 +63,7 @@
       </div>
       <div id="tarjetas"></div>
       <p id="sin-modulos" class="vacio" hidden><svg class="i big" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Todavía no tenés sistemas asignados.<br>Pedile acceso a Marcos.</p>
+      <div id="ultimos-wrap" hidden><div class="seccion-t">Últimos avisos</div><div id="ultimos" class="feed"></div></div>
       <button id="btn-salir" class="enlace">Cerrar sesión en este celular</button>
     </section>
 
@@ -201,6 +205,6 @@
 <div id="cargando" class="cargando" hidden><div class="spinner"></div></div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

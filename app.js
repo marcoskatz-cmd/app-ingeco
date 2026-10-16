@@ -79,6 +79,7 @@ function mostrarVista(v) {
   if (v !== 'modulo') { $('modulo-frame').src = 'about:blank'; S.moduloActual = null; }
   const titulos = { inicio: 'INGECO', bandeja: 'Avisos', ayuda: 'Ayuda', admin: 'Administración', avisos: 'Enviar avisos', lector: 'Avisos INGECO' };
   document.body.classList.toggle('modo-lector', v === 'lector');
+  document.body.classList.toggle('en-inicio', v === 'inicio');
   $('nav').hidden = v === 'lector' || v === 'modulo';
   if (S.perfil) { $('nav-enviar').hidden = !S.perfil.modulos.some(m => m.codigo === 'AVISOS'); $('nav-admin').hidden = !S.perfil.es_admin; }
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('activa', b.dataset.nav === '#' + v));
@@ -218,10 +219,15 @@ const ICONOS = {
 };
 const ICONO_POR_CODIGO = { INGECOV: 'flota', COMPRAS: 'compras', COMBUSTIBLE: 'combustible', TARJA: 'tarja', ROPA: 'ropa', PAVIMAX: 'pavimax', PAVIMAX_OP: 'planta', TRASLADOS: 'traslados', TRITURACION: 'trituracion', LICITACIONES: 'licitaciones', LOCALES_TERMINAL: 'locales', PEDIDOS_TERMINAL: 'compras', AUTOVIAS: 'autovias', EXPEDIENTES: 'expedientes', DEMARCACION: 'demarcacion', DEMARCACION_MON: 'demarcacion', BACHES: 'baches', AVISOS: 'avisos', ADMIN: 'admin' };
 const ICONO_POR_NOMBRE = [[/flota|manten/i, 'flota'], [/compra|pedido|orden/i, 'compras'], [/combust|gasoil/i, 'combustible'], [/tarja|hora/i, 'tarja'], [/ropa|indument/i, 'ropa'], [/operario|planta/i, 'planta'], [/pavimax/i, 'pavimax'], [/traslad/i, 'traslados'], [/tritur|árido/i, 'trituracion'], [/licitac/i, 'licitaciones'], [/local|alquiler/i, 'locales'], [/autov|bacheo/i, 'autovias'], [/expedient/i, 'expedientes'], [/demarc/i, 'demarcacion'], [/bache|waze/i, 'baches']];
-function iconoDe(m) {
+function claveIcono(m) {
   const cod = String(m.codigo || '').toUpperCase();
   let k = ICONO_POR_CODIGO[cod];
   if (!k) { const r = ICONO_POR_NOMBRE.find(([re]) => re.test(m.nombre || '')); k = r ? r[1] : 'generico'; }
+  return k;
+}
+const colorDe = m => 'k-' + claveIcono(m);
+function iconoDe(m) {
+  const k = claveIcono(m);
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONOS[k]}</svg>`;
 }
 // Marca a la que pertenece cada sistema: define el grupo, el logo y el color.
@@ -243,16 +249,25 @@ function verInicio() {
   const sinLeer = (S.avisos || []).filter(a => !a.leido).slice(0, 3);
   const n = S.totalSinLeer;
   const hoy = $('hoy');
-  if (S.avisos === null) hoy.innerHTML = '<div class="skel" style="height:72px;background:rgba(255,255,255,.25)"></div>';
-  else if (!n) { hoy.className = 'hoy calma'; hoy.innerHTML = '<svg class="i n" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg><div class="t">Estás al día, no tenés avisos sin leer.</div>'; }
+  if (S.avisos === null) hoy.innerHTML = '<div class="skel" style="height:64px;background:rgba(255,255,255,.12)"></div>';
+  else if (!n) { hoy.className = 'hoy calma'; hoy.innerHTML = '<div class="n"><svg class="i" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div><div class="t"><b>Estás al día</b><span>No tenés avisos sin leer</span></div>'; }
   else {
     hoy.className = 'hoy';
-    hoy.innerHTML = `<div class="n">${n}</div><div class="t">aviso${n > 1 ? 's' : ''} sin leer</div>
-      <ul>${sinLeer.map(a => `<li data-id="${esc(a.id)}"><svg class="i" viewBox="0 0 24 24">${a.prioridad === 'critica' ? '<path d="M12 3l10 18H2zM12 10v5M12 18h.01"/>' : '<path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0"/>'}</svg><b>${esc(a.titulo)}</b><small>${hora(a.fecha)}</small></li>`).join('')}</ul>
-      ${n > 3 ? '<button class="ver-todo" data-nav="#bandeja">Ver los ' + n + ' avisos ›</button>' : '<button class="ver-todo" data-nav="#bandeja">Ir a la bandeja ›</button>'}`;
-    hoy.querySelectorAll('li').forEach(li => li.onclick = () => { const a = S.avisos.find(x => x.id === li.dataset.id); marcarLeido(a); if (a.url_destino) abrirDestino(a); else irA('#bandeja'); });
-    hoy.querySelector('.ver-todo').onclick = () => irA('#bandeja');
+    hoy.innerHTML = `<div class="n">${n}</div><div class="t"><b>aviso${n > 1 ? 's' : ''} sin leer</b><span>${esc(sinLeer[0].titulo)}${n > 1 ? ' y más' : ''}</span></div>`;
+    hoy.onclick = () => irA('#bandeja');
   }
+  const puedeEnviar = p.modulos.some(m => m.codigo === 'AVISOS');
+  $('hero-acciones').innerHTML = [
+    ['#bandeja', '<path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0"/>', 'Bandeja', n],
+    puedeEnviar ? ['#avisos', '<path d="M3 11l18-7-7 18-2.5-7.5z"/>', 'Enviar aviso', 0] : null,
+    ['#ayuda', '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/>', 'Ayuda', 0]
+  ].filter(Boolean).map(([h, d, t, b]) => `<button data-nav="${h}"><span class="ico"><svg viewBox="0 0 24 24">${d}</svg>${b ? `<i>${b}</i>` : ''}</span>${t}</button>`).join('');
+  $('hero-acciones').querySelectorAll('button').forEach(b => b.onclick = () => irA(b.dataset.nav));
+  // Últimos avisos (feed corto)
+  const ult = (S.avisos || []).slice().sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 4);
+  $('ultimos-wrap').hidden = !ult.length;
+  $('ultimos').innerHTML = ult.map(a => `<div class="feed-item ${a.leido ? '' : 'nuevo'}" data-id="${esc(a.id)}"><span class="pt"></span><div><b>${esc(a.titulo)}</b><small>${esc(nombreModulo(a.modulo))} · ${fechaDia(a.fecha)} ${hora(a.fecha)}</small></div></div>`).join('');
+  $('ultimos').querySelectorAll('.feed-item').forEach(el => el.onclick = () => { const a = S.avisos.find(x => x.id === el.dataset.id); marcarLeido(a); if (a.url_destino) abrirDestino(a); else irA('#bandeja'); });
   // Pendientes de aprobación (solo aprobadores)
   const pend = $('pend-aprobar');
   const esAprobador = p.es_admin || p.modulos.some(m => m.codigo === 'AVISOS' && String(m.rol).toUpperCase() === 'APROBADOR');
@@ -265,18 +280,15 @@ function verInicio() {
   });
   const mods = p.modulos.filter(m => m.codigo !== 'ADMIN' && m.codigo !== 'AVISOS');
   const grupos = [MARCAS[2], MARCAS[0], MARCAS[1]].map(mk => ({ mk, mods: mods.filter(m => marcaDe(m) === mk) })).filter(g => g.mods.length);
-  const multi = grupos.length > 1;
   $('tarjetas').innerHTML = grupos.map(g => `
-    <div class="marca ${g.mk.id}"><img src="${g.mk.logo}" alt="${esc(g.mk.nombre)}">${multi ? '' : '<small>Tus sistemas</small>'}</div>
-    <div class="tarjetas ${g.mk.id}">${g.mods.map(m => `
-      <button class="tarjeta" data-cod="${esc(m.codigo)}">
-        <span class="ico">${iconoDe(m)}</span>
-        <span class="nom">${esc(m.nombre)}</span>
-        <span class="des">${esc(m.descripcion_corta || '')}</span>
-        ${S.sinLeer[m.codigo] ? `<span class="badge">${S.sinLeer[m.codigo]}</span>` : ''}
+    <div class="marca ${g.mk.id}"><img src="${g.mk.logo}" alt="${esc(g.mk.nombre)}"></div>
+    <div class="tiles ${g.mk.id}">${g.mods.map(m => `
+      <button class="tile" data-cod="${esc(m.codigo)}" title="${esc(m.descripcion_corta || '')}">
+        <span class="ico ${colorDe(m)}">${iconoDe(m)}${S.sinLeer[m.codigo] ? `<i class="badge">${S.sinLeer[m.codigo]}</i>` : ''}</span>
+        <span class="lbl">${esc(m.nombre)}</span>
       </button>`).join('')}</div>`).join('');
   $('sin-modulos').hidden = mods.length > 0 || p.es_admin;
-  $('tarjetas').querySelectorAll('.tarjeta').forEach(t => t.onclick = () => {
+  $('tarjetas').querySelectorAll('.tile').forEach(t => t.onclick = () => {
     vibrar();
     const m = p.modulos.find(x => x.codigo === t.dataset.cod);
     if (m.codigo === 'ADMIN') return irA('#admin');
