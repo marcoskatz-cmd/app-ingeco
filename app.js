@@ -71,7 +71,8 @@ const VISTAS = ['login', 'inicio', 'modulo', 'bandeja', 'ayuda', 'admin', 'aviso
 function mostrarVista(v) {
   const enApp = ['inicio', 'modulo', 'bandeja', 'ayuda', 'admin', 'avisos', 'lector'].includes(v);
   $('app').hidden = !enApp;
-  VISTAS.forEach(x => { $('v-' + x).hidden = x !== v; });
+  const cambiar = () => VISTAS.forEach(x => { $('v-' + x).hidden = x !== v; });
+  if (document.startViewTransition && !document.querySelector('#v-' + v + ':not([hidden])') && enApp) { const vt = document.startViewTransition(cambiar); [vt.ready, vt.finished, vt.updateCallbackDone].forEach(pr => pr.catch(() => {})); } else cambiar();
   $('btn-volver').hidden = v === 'inicio' || v === 'lector';
   $('btn-consultar').hidden = true;
   $('btn-refrescar').hidden = !['inicio', 'bandeja', 'lector', 'avisos'].includes(v);
@@ -194,6 +195,7 @@ function pintarCampana() {
 }
 
 // ───────────────────────── Inicio ─────────────────────────
+const mono = n => { const w = String(n||'').replace(/[^\p{L}\p{N} ]/gu,'').trim().split(/\s+/).filter(x => x && !/^(de|del|la|el|a|y|en|los|las|al|por|para)$/i.test(x)); return (w.length > 1 ? w[0][0] + w[1][0] : (w[0]||'?').slice(0,2)).toUpperCase(); };
 const SALUDO = () => { const h = new Date().getHours(); return h < 12 ? 'Buen día' : h < 19 ? 'Buenas tardes' : 'Buenas noches'; };
 function verInicio() {
   mostrarVista('inicio');
@@ -207,11 +209,11 @@ function verInicio() {
   const n = S.totalSinLeer;
   const hoy = $('hoy');
   if (S.avisos === null) hoy.innerHTML = '<div class="skel" style="height:72px;background:rgba(255,255,255,.25)"></div>';
-  else if (!n) { hoy.className = 'hoy calma'; hoy.innerHTML = '<div class="n">✓</div><div class="t">Estás al día. No tenés avisos sin leer.</div>'; }
+  else if (!n) { hoy.className = 'hoy calma'; hoy.innerHTML = '<svg class="i n" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg><div class="t">Estás al día, no tenés avisos sin leer.</div>'; }
   else {
     hoy.className = 'hoy';
     hoy.innerHTML = `<div class="n">${n}</div><div class="t">aviso${n > 1 ? 's' : ''} sin leer</div>
-      <ul>${sinLeer.map(a => `<li data-id="${esc(a.id)}">${a.prioridad === 'critica' ? '⚠️' : '•'}<b>${esc(a.titulo)}</b><small>${hora(a.fecha)}</small></li>`).join('')}</ul>
+      <ul>${sinLeer.map(a => `<li data-id="${esc(a.id)}"><svg class="i" viewBox="0 0 24 24">${a.prioridad === 'critica' ? '<path d="M12 3l10 18H2zM12 10v5M12 18h.01"/>' : '<path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0"/>'}</svg><b>${esc(a.titulo)}</b><small>${hora(a.fecha)}</small></li>`).join('')}</ul>
       ${n > 3 ? '<button class="ver-todo" data-nav="#bandeja">Ver los ' + n + ' avisos ›</button>' : '<button class="ver-todo" data-nav="#bandeja">Ir a la bandeja ›</button>'}`;
     hoy.querySelectorAll('li').forEach(li => li.onclick = () => { const a = S.avisos.find(x => x.id === li.dataset.id); marcarLeido(a); if (a.url_destino) abrirDestino(a); else irA('#bandeja'); });
     hoy.querySelector('.ver-todo').onclick = () => irA('#bandeja');
@@ -223,13 +225,13 @@ function verInicio() {
   if (esAprobador) api('com_listar', {}, { silencioso: true }).then(r => {
     if (!r.ok || !r.pendientes.length) return;
     pend.hidden = false;
-    pend.innerHTML = `<span style="font-size:1.6rem">📝</span><div><b>${r.pendientes.length} aviso${r.pendientes.length > 1 ? 's' : ''} para aprobar</b><br><small>${esc(r.pendientes[0].emisor)}: ${esc(r.pendientes[0].titulo)}</small></div><span style="margin-left:auto;font-size:1.3rem;opacity:.6">›</span>`;
+    pend.innerHTML = `<svg class="i" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16zM13 7l4 4"/></svg><div><b>${r.pendientes.length} aviso${r.pendientes.length > 1 ? 's' : ''} para aprobar</b><br><small>${esc(r.pendientes[0].emisor)}: ${esc(r.pendientes[0].titulo)}</small></div><span style="margin-left:auto;font-size:1.3rem;opacity:.6">›</span>`;
     pend.onclick = () => irA('#avisos/' + encodeURIComponent(r.pendientes[0].id));
   });
   const mods = p.modulos.filter(m => m.codigo !== 'ADMIN' && m.codigo !== 'AVISOS');
   $('tarjetas').innerHTML = mods.map((m, i) => `
     <button class="tarjeta c${(i % 6) + 1}" data-cod="${esc(m.codigo)}">
-      <span class="ico">${esc(m.icono)}</span>
+      <span class="mono">${mono(m.nombre)}</span>
       <span class="nom">${esc(m.nombre)}</span>
       <span class="des">${esc(m.descripcion_corta || '')}</span>
       ${S.sinLeer[m.codigo] ? `<span class="badge">${S.sinLeer[m.codigo]}</span>` : ''}
@@ -320,13 +322,13 @@ function verBandeja() {
     const m = S.perfil.modulos.find(x => x.codigo === a.modulo);
     html += `<div class="aviso ${a.leido ? '' : 'nuevo'} ${a.prioridad === 'critica' ? 'critico' : ''}" data-id="${esc(a.id)}">
       <div class="cuerpo">
-        <div class="titulo">${a.prioridad === 'critica' ? '⚠️ ' : ''}${esc(a.titulo)}</div>
+        <div class="titulo">${esc(a.titulo)}</div>
         <div class="texto">${esc(a.cuerpo)}</div>
         <div class="meta"><span class="mod">${esc(nombreModulo(a.modulo))}</span>${hora(a.fecha)}</div>
       </div>
       <div class="acciones">
-        ${a.url_destino ? `<button data-abrir="${esc(a.id)}" aria-label="Abrir">↗</button>` : ''}
-        ${m && m.responsable_celular ? `<button data-wa="${esc(a.id)}" aria-label="Consultar por WhatsApp">💬</button>` : ''}
+        ${a.url_destino ? `<button data-abrir="${esc(a.id)}" aria-label="Abrir"><svg class="i" viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></button>` : ''}
+        ${m && m.responsable_celular ? `<button data-wa="${esc(a.id)}" aria-label="Consultar por WhatsApp"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.2L4 21l1.8-5.4A8 8 0 1 1 21 12z"/></svg></button>` : ''}
       </div></div>`;
   });
   $('bandeja-lista').innerHTML = html;
@@ -930,7 +932,7 @@ function pintarLector(avisos) {
   lista.forEach(a => {
     const d = (a.leido ? 'Leídos · ' : '') + fechaDia(a.fecha);
     if (d !== dia) { dia = d; html += `<div class="dia">${esc(d)}</div>`; }
-    html += `<div class="aviso ${a.leido ? '' : 'nuevo'} ${a.prioridad === 'critica' ? 'critico' : ''}" data-id="${esc(a.id)}"><div class="cuerpo"><div class="titulo">${a.prioridad === 'critica' ? '⚠️ ' : ''}${esc(a.titulo)}</div><div class="texto">${esc(a.cuerpo)}</div><div class="meta">${hora(a.fecha)}</div></div>${a.url_destino && !String(a.url_destino).startsWith('#') ? `<div class="acciones"><button aria-label="Abrir">↗</button></div>` : ''}</div>`;
+    html += `<div class="aviso ${a.leido ? '' : 'nuevo'} ${a.prioridad === 'critica' ? 'critico' : ''}" data-id="${esc(a.id)}"><div class="cuerpo"><div class="titulo">${esc(a.titulo)}</div><div class="texto">${esc(a.cuerpo)}</div><div class="meta">${hora(a.fecha)}</div></div>${a.url_destino && !String(a.url_destino).startsWith('#') ? `<div class="acciones"><button aria-label="Abrir"><svg class="i" viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></button></div>` : ''}</div>`;
   });
   $('lector-lista').innerHTML = html;
   $('lector-lista').querySelectorAll('.aviso').forEach(el => el.onclick = async () => {
