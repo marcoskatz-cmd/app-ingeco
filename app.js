@@ -195,7 +195,42 @@ function pintarCampana() {
 }
 
 // ───────────────────────── Inicio ─────────────────────────
-const mono = n => { const w = String(n||'').replace(/[^\p{L}\p{N} ]/gu,'').trim().split(/\s+/).filter(x => x && !/^(de|del|la|el|a|y|en|los|las|al|por|para)$/i.test(x)); return (w.length > 1 ? w[0][0] + w[1][0] : (w[0]||'?').slice(0,2)).toUpperCase(); };
+// Íconos de trazo por sistema (24×24). Se eligen por código y, si no hay, por palabras del nombre.
+const ICONOS = {
+  flota: '<path d="M14.5 6.5a4.5 4.5 0 0 0-6 5.3L3 17.3 6.7 21l5.5-5.5a4.5 4.5 0 0 0 5.3-6l-2.8 2.8-2.4-.6-.6-2.4z"/>',
+  compras: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
+  combustible: '<path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h14M7 7h6v4H7z"/><path d="M15 9h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0v-7l-2-2"/>',
+  tarja: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6M12 2v3"/>',
+  ropa: '<path d="M8 4l4 2 4-2 4 3-2 3-2-1v12H8V9L6 10 4 7z"/>',
+  pavimax: '<path d="M9 3h6l-1 3h-4zM8 6h8c3.5 3 4.5 6 4.5 9a6 6 0 0 1-6 6h-5a6 6 0 0 1-6-6c0-3 1-6 4.5-9z"/>',
+  planta: '<path d="M3 21V10l5 3v-3l5 3v-3l5 3v8zM3 21h18M7 17h2M11 17h2M15 17h2"/>',
+  traslados: '<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/><path d="M6 4l-2 3 2 3"/>',
+  trituracion: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3v9m0 0l8-4.5M12 12l-8-4.5M12 12l3 9M12 12l-5 7"/>',
+  licitaciones: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8 12h8M8 16h5"/><circle cx="16" cy="17" r="2.5"/>',
+  locales: '<path d="M4 10l1.5-5h13L20 10M4 10a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0M5 10v10h14V10M10 20v-6h4v6"/>',
+  autovias: '<circle cx="7" cy="16" r="4"/><path d="M11 16h9v-5h-6l-2-4H8v4M3 21h18"/>',
+  expedientes: '<path d="M3 7a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M7 14h3l2-2 2 3 2-1h1"/>',
+  demarcacion: '<rect x="3" y="4" width="13" height="5" rx="1"/><path d="M16 6.5h4v5h-8v3"/><rect x="10" y="14.5" width="4" height="6.5" rx="1"/>',
+  baches: '<path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><path d="M9 10l2 1 1-2 2 2 1-1"/>',
+  avisos: '<path d="M3 11l18-7-7 18-2.5-7.5z"/>',
+  admin: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  generico: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'
+};
+const ICONO_POR_CODIGO = { INGECOV: 'flota', COMPRAS: 'compras', COMBUSTIBLE: 'combustible', TARJA: 'tarja', ROPA: 'ropa', PAVIMAX: 'pavimax', PAVIMAX_OP: 'planta', TRASLADOS: 'traslados', TRITURACION: 'trituracion', LICITACIONES: 'licitaciones', LOCALES_TERMINAL: 'locales', PEDIDOS_TERMINAL: 'compras', AUTOVIAS: 'autovias', EXPEDIENTES: 'expedientes', DEMARCACION: 'demarcacion', DEMARCACION_MON: 'demarcacion', BACHES: 'baches', AVISOS: 'avisos', ADMIN: 'admin' };
+const ICONO_POR_NOMBRE = [[/flota|manten/i, 'flota'], [/compra|pedido|orden/i, 'compras'], [/combust|gasoil/i, 'combustible'], [/tarja|hora/i, 'tarja'], [/ropa|indument/i, 'ropa'], [/operario|planta/i, 'planta'], [/pavimax/i, 'pavimax'], [/traslad/i, 'traslados'], [/tritur|árido/i, 'trituracion'], [/licitac/i, 'licitaciones'], [/local|alquiler/i, 'locales'], [/autov|bacheo/i, 'autovias'], [/expedient/i, 'expedientes'], [/demarc/i, 'demarcacion'], [/bache|waze/i, 'baches']];
+function iconoDe(m) {
+  const cod = String(m.codigo || '').toUpperCase();
+  let k = ICONO_POR_CODIGO[cod];
+  if (!k) { const r = ICONO_POR_NOMBRE.find(([re]) => re.test(m.nombre || '')); k = r ? r[1] : 'generico'; }
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONOS[k]}</svg>`;
+}
+// Marca a la que pertenece cada sistema: define el grupo, el logo y el color.
+const MARCAS = [
+  { id: 'pavimax', nombre: 'PAVIMAX', logo: 'logo-pavimax.png', es: m => /^PAVIMAX/i.test(m.codigo) || /pavimax/i.test(m.nombre) },
+  { id: 'terminal', nombre: 'Terminal de Tucumán', logo: 'logo-terminal.png', es: m => /TERMINAL/i.test(m.codigo) || /terminal/i.test(m.nombre) },
+  { id: 'ingeco', nombre: 'INGECO', logo: 'logo.png', es: () => true }
+];
+const marcaDe = m => MARCAS.find(x => x.es(m));
 const SALUDO = () => { const h = new Date().getHours(); return h < 12 ? 'Buen día' : h < 19 ? 'Buenas tardes' : 'Buenas noches'; };
 function verInicio() {
   mostrarVista('inicio');
@@ -229,13 +264,17 @@ function verInicio() {
     pend.onclick = () => irA('#avisos/' + encodeURIComponent(r.pendientes[0].id));
   });
   const mods = p.modulos.filter(m => m.codigo !== 'ADMIN' && m.codigo !== 'AVISOS');
-  $('tarjetas').innerHTML = mods.map((m, i) => `
-    <button class="tarjeta c${(i % 6) + 1}" data-cod="${esc(m.codigo)}">
-      <span class="mono">${mono(m.nombre)}</span>
-      <span class="nom">${esc(m.nombre)}</span>
-      <span class="des">${esc(m.descripcion_corta || '')}</span>
-      ${S.sinLeer[m.codigo] ? `<span class="badge">${S.sinLeer[m.codigo]}</span>` : ''}
-    </button>`).join('');
+  const grupos = [MARCAS[2], MARCAS[0], MARCAS[1]].map(mk => ({ mk, mods: mods.filter(m => marcaDe(m) === mk) })).filter(g => g.mods.length);
+  const multi = grupos.length > 1;
+  $('tarjetas').innerHTML = grupos.map(g => `
+    <div class="marca ${g.mk.id}"><img src="${g.mk.logo}" alt="${esc(g.mk.nombre)}">${multi ? '' : '<small>Tus sistemas</small>'}</div>
+    <div class="tarjetas ${g.mk.id}">${g.mods.map(m => `
+      <button class="tarjeta" data-cod="${esc(m.codigo)}">
+        <span class="ico">${iconoDe(m)}</span>
+        <span class="nom">${esc(m.nombre)}</span>
+        <span class="des">${esc(m.descripcion_corta || '')}</span>
+        ${S.sinLeer[m.codigo] ? `<span class="badge">${S.sinLeer[m.codigo]}</span>` : ''}
+      </button>`).join('')}</div>`).join('');
   $('sin-modulos').hidden = mods.length > 0 || p.es_admin;
   $('tarjetas').querySelectorAll('.tarjeta').forEach(t => t.onclick = () => {
     vibrar();
