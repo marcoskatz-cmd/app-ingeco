@@ -199,6 +199,7 @@ function pintarCampana() {
 // ───────────────────────── Inicio ─────────────────────────
 // Íconos de trazo por sistema (24×24). Se eligen por código y, si no hay, por palabras del nombre.
 const ICONOS = {
+  dashboard: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   flota: '<path d="M14.5 6.5a4.5 4.5 0 0 0-6 5.3L3 17.3 6.7 21l5.5-5.5a4.5 4.5 0 0 0 5.3-6l-2.8 2.8-2.4-.6-.6-2.4z"/>',
   compras: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   combustible: '<path d="M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M3 21h14M7 7h6v4H7z"/><path d="M15 9h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0v-7l-2-2"/>',
@@ -218,7 +219,7 @@ const ICONOS = {
   admin: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
   generico: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'
 };
-const ICONO_POR_CODIGO = { INGECOV: 'flota', COMPRAS: 'compras', COMBUSTIBLE: 'combustible', TARJA: 'tarja', ROPA: 'ropa', PAVIMAX: 'pavimax', PAVIMAX_OP: 'planta', TRASLADOS: 'traslados', TRITURACION: 'trituracion', LICITACIONES: 'licitaciones', LOCALES_TERMINAL: 'locales', PEDIDOS_TERMINAL: 'compras', AUTOVIAS: 'autovias', EXPEDIENTES: 'expedientes', DEMARCACION: 'demarcacion', DEMARCACION_MON: 'demarcacion', BACHES: 'baches', AVISOS: 'avisos', ADMIN: 'admin' };
+const ICONO_POR_CODIGO = { INGECOV: 'flota', COMPRAS: 'compras', COMBUSTIBLE: 'combustible', TARJA: 'tarja', ROPA: 'ropa', PAVIMAX: 'pavimax', PAVIMAX_OP: 'planta', TRASLADOS: 'traslados', TRITURACION: 'trituracion', LICITACIONES: 'licitaciones', LOCALES_TERMINAL: 'locales', PEDIDOS_TERMINAL: 'compras', AUTOVIAS: 'autovias', EXPEDIENTES: 'expedientes', DASHBOARD: 'dashboard', DEMARCACION: 'demarcacion', DEMARCACION_MON: 'demarcacion', BACHES: 'baches', AVISOS: 'avisos', ADMIN: 'admin' };
 const ICONO_POR_NOMBRE = [[/flota|manten/i, 'flota'], [/compra|pedido|orden/i, 'compras'], [/combust|gasoil/i, 'combustible'], [/tarja|hora/i, 'tarja'], [/ropa|indument/i, 'ropa'], [/operario|planta/i, 'planta'], [/pavimax/i, 'pavimax'], [/traslad/i, 'traslados'], [/tritur|árido/i, 'trituracion'], [/licitac/i, 'licitaciones'], [/local|alquiler/i, 'locales'], [/autov|bacheo/i, 'autovias'], [/expedient/i, 'expedientes'], [/demarc/i, 'demarcacion'], [/bache|waze/i, 'baches']];
 function claveIcono(m) {
   const cod = String(m.codigo || '').toUpperCase();
