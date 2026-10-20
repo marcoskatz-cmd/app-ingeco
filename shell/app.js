@@ -321,7 +321,10 @@ async function abrirModulo(codigo) {
   const urlConToken = u => urlConTicket(u, tk);
   // Las web apps de Apps Script no se dejan embeber cuando el usuario está logueado en Workspace
   // (Google las redirige a /a/macros/<dominio>/ con X-Frame-Options SAMEORIGIN): siempre pestaña completa.
-  if (m.tipo === 'link' || /script\.google\.com/.test(m.url)) { location.href = urlConToken(m.url); return; }
+  if (m.tipo === 'link' || /script\.google\.com/.test(m.url)) {
+    // Al volver (X de la pestaña externa) no hay que reabrirlo: sacar #modulo/X del historial.
+    history.replaceState(null, '', '#inicio'); location.href = urlConToken(m.url); return;
+  }
   S.moduloActual = m;
   mostrarVista('modulo');
   $('barra-titulo').textContent = m.nombre;
