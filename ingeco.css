@@ -46,7 +46,8 @@
   [hidden] { display: none !important; }
   button { font: inherit; cursor: pointer; color: inherit; }
   button:focus:not(:focus-visible) { outline: none; }
-  input, select, textarea { font: inherit; padding: 10px 14px; border: 1px solid var(--linea-fuerte); border-radius: var(--radio-s); background: var(--superficie); color: var(--texto); }
+  input, select, textarea { font: inherit; color: var(--texto); accent-color: var(--azul); }
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]), select, textarea { padding: 10px 14px; border: 1px solid var(--linea-fuerte); border-radius: var(--radio-s); background: var(--superficie); }
   input:focus, select:focus, textarea:focus { outline: 2px solid var(--azul-claro); outline-offset: 1px; border-color: var(--azul-claro); }
   h1, h2, h3, h4 { margin: 0 0 .5rem; font-family: var(--display); letter-spacing: .005em; }
   h3 { font-size: 1.15rem; font-weight: 600; }
