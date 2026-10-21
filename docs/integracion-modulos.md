@@ -166,3 +166,22 @@ Todos usan el snippet `docs/IngecoAvisos.gs` (`notificarAppIngeco_(modulo, aviso
 ## Orden de migración
 
 INGECOV → Combustible y Tarja → Ropa → Pedidos de compra (el único con auth propia que vale conservar).
+
+## 4. Estilo común (desde 21-oct-2026)
+
+Todos los sistemas de INGECO (menos Ropa, Demarcación, Waze, Locales y Pedidos Terminal) se ven como la App cargando
+`https://marcoskatz-cmd.github.io/app-ingeco/ingeco.css` e `ingeco.js` **sin `?v=`** (siempre la última). La App también los usa.
+Un cambio de colores, letra o base se hace en `shell/ingeco.css`, se prueba con `shell/ingeco-prueba.html` (tiene que decir TODO OK)
+y llega a todos al publicar gh-pages. Spec y plan: `docs/superpowers/specs|plans/2026-10-21-estetica-comun*`.
+
+Para sumar un sistema nuevo:
+1. En el `<head>`, antes de su CSS: el bloque de **respaldo mínimo** (un `<style>` con los tokens, por si `ingeco.css` no carga),
+   `<link>` a `ingeco.css` y `<script defer>` a `ingeco.js`. Copiarlo de cualquier sistema ya hecho (p. ej. expedientes-ingeco/web/index.html).
+2. Usar los tokens (`--azul`, `--tinta`, `--teal`, `--ambar`, `--ambar-texto`, `--alerta`, `--fondo`, `--superficie`, `--texto[-2|-3]`,
+   `--linea[-fuerte]`, `--radio[-s]`, `--display`, `--cuerpo`, gráficos `--g1..--g6`). Teal = bien, ámbar = pendiente, `--alerta` = problema;
+   texto ámbar siempre con `--ambar-texto`. Nunca rojo vs verde.
+3. Barra superior clara con `<button class="ig-volver" data-ig-volver>` como primer hijo; el logo/título que repite la App lleva
+   `data-ig-ocultar-en-app`. `ingeco.js` pone `<html data-ig-contexto="iframe|pestana|directo">`: la flecha solo se ve en `pestana`
+   (abierto desde la App en otra pestaña); en `iframe` avisa a la App con `postMessage({tipo:'ingeco_volver'})`.
+4. Gráficos/mapas: colores con `IG.paleta()` / `IG.color('azul')` dentro de la función que dibuja (ingeco.js es defer), con respaldo fijo.
+5. Si tiene service worker: `ingeco.*` red primero con respaldo de caché, y subir la versión del caché.
