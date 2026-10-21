@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--azul:#1e3a8a;--azul-claro:#2b4fb3;--azul-suave:#e6ecfb;--tinta:#0f1a3d;--teal:#0e8a7a;--teal-suave:#dcf1ee;--ambar:#d98f00;--ambar-suave:#fff1cf;--alerta:#b8410e;--alerta-suave:#fbe6dc;--fondo:#f5f4f0;--fondo-2:#ebe9e3;--sup:#fff;--texto:#171c2e;--t2:#5b6274;--t3:#8a90a0;--linea:#e2dfd7;--lf:#c9c5bb;--display:'Barlow Semi Condensed','Barlow',sans-serif;--cuerpo:'Barlow',sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#dcd9d1;font:15px/1.4 var(--cuerpo);color:var(--texto);padding:24px}
+h1{font-family:var(--display);font-weight:600;margin:0 0 4px;color:var(--tinta)}
+.sub{color:var(--t2);margin:0 0 20px;max-width:900px}
+.fila{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.col{display:flex;flex-direction:column;gap:8px;align-items:center}
+.cap{font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.08em;font-size:.8rem;color:var(--t2)}
+.cap.antes{color:#9a3412}
+.tel{width:300px;height:600px;border-radius:30px;border:8px solid #1b1d22;overflow:hidden;background:var(--fondo);position:relative;box-shadow:0 20px 40px -20px rgba(0,0,0,.5)}
+/* barra comun */
+.barra{height:52px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--linea);background:color-mix(in srgb,var(--fondo) 90%,transparent)}
+.barra .vol{width:26px;color:var(--t2);font-size:20px}
+.barra img{height:16px}
+.barra h2{flex:1;margin:0;font-family:var(--display);font-weight:600;font-size:1.1rem;color:var(--tinta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.barra .ic{width:22px;height:22px;border-radius:50%;border:1.6px solid var(--t2)}
+.cont{padding:12px 14px}
+.tabs{display:flex;gap:6px;overflow:hidden;margin-bottom:12px}
+.tabs span{white-space:nowrap;border:1px solid var(--lf);border-radius:999px;padding:6px 12px;font-weight:500;font-size:.85rem;color:var(--t2)}
+.tabs span.a{background:var(--tinta);color:var(--fondo);border-color:var(--tinta)}
+.kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px}
+.kpi{background:var(--sup);border:1px solid var(--linea);border-radius:14px;padding:10px 6px;text-align:center}
+.kpi b{display:block;font-family:var(--display);font-size:1.5rem;font-weight:600;color:var(--tinta)}
+.kpi span{font-size:.72rem;color:var(--t2)}
+.st{font-family:var(--display);font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--t2);font-weight:600;margin:14px 0 8px}
+.lista{background:var(--sup);border:1px solid var(--linea);border-radius:14px;overflow:hidden}
+.it{display:flex;gap:10px;align-items:center;padding:11px 12px;border-bottom:1px solid var(--linea)}
+.it:last-child{border:none}
+.it .x{flex:1;min-width:0}.it b{display:block;font-weight:600;font-size:.95rem}.it small{color:var(--t3);font-size:.78rem}
+.est{border-radius:4px;padding:1px 7px;font-size:.66rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.est.ok{background:var(--teal-suave);color:var(--teal)}.est.pe{background:var(--ambar-suave);color:#8a5a00}.est.ma{background:var(--alerta-suave);color:var(--alerta)}.est.az{background:var(--azul-suave);color:var(--azul)}
+.campo{margin:10px 0}.campo span{display:block;font-size:.72rem;color:var(--t2);font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.inp{border:1px solid var(--lf);border-radius:10px;background:var(--sup);height:44px;padding:0 12px;display:flex;align-items:center;color:var(--t3)}
+.btn{height:46px;border-radius:10px;background:var(--azul);color:#fff;font-weight:600;display:flex;align-items:center;justify-content:center;margin-top:14px}
+.btn2{height:46px;border-radius:10px;background:var(--sup);border:1px solid var(--lf);color:var(--azul);font-weight:600;display:flex;align-items:center;justify-content:center;margin-top:8px}
+.firma{height:90px;border:1.5px dashed var(--lf);border-radius:10px;background:var(--sup);display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:.85rem}
+.toast{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:var(--teal);color:#fff;padding:9px 16px;border-radius:10px;font-weight:500;font-size:.88rem;white-space:nowrap}
+/* INGECOV antes (aprox) */
+.antes-ui{background:#f4f2ed;height:100%;font-family:'Barlow',sans-serif}
+.antes-ui .hd{background:#1b1d22;color:#fff;display:flex;align-items:center;gap:8px;padding:12px;font-weight:700;letter-spacing:.04em}
+.antes-ui .hd i{width:3px;height:18px;background:#e85d1a;display:inline-block}
+.antes-ui .tb{display:flex;gap:0;background:#fff;border-bottom:2px solid #e85d1a;font-size:.78rem;font-weight:700;text-transform:uppercase;overflow:hidden}
+.antes-ui .tb span{padding:10px 9px;white-space:nowrap;color:#555}.antes-ui .tb span.a{background:#e85d1a;color:#fff}
+.antes-ui .k{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;padding:10px}
+.antes-ui .k div{background:#fff;border-left:3px solid #e85d1a;padding:8px;font-family:'JetBrains Mono',monospace;font-size:1.1rem}
+.antes-ui .k small{display:block;font-family:Barlow;font-size:.65rem;color:#777;text-transform:uppercase}
+.antes-ui table{width:calc(100% - 20px);margin:0 10px;border-collapse:collapse;font-size:.78rem;background:#fff}
+.antes-ui td,.antes-ui th{padding:7px 6px;border-bottom:1px solid #e5e2db;text-align:left}
+.antes-ui th{background:#1b1d22;color:#fff;font-size:.68rem;text-transform:uppercase}
+.antes-ui .r{color:#d03b3b;font-weight:700}.antes-ui .g{color:#1e8e3e;font-weight:700}
+.nota{background:#fff;border-radius:14px;padding:16px 18px;margin-top:24px;max-width:960px;border:1px solid var(--linea)}
+.nota li{margin:4px 0}
+</style></head><body>
+<h1>Estética común — así se verían</h1>
+<p class="sub">Mismos colores, letra, barra superior, pestañas tipo pastilla, tarjetas y botones que la App INGECO. Cada sistema conserva sus pantallas y su forma de trabajar; solo cambia la "piel". Maquetas aproximadas, con datos inventados.</p>
+
+<div class="fila">
+  <div class="col"><div class="cap antes">INGECOV hoy (aprox.)</div>
+    <div class="tel"><div class="antes-ui">
+      <div class="hd"><i></i>INGECO · PANEL DE FLOTA</div>
+      <div class="tb"><span class="a">Equipos</span><span>Costos</span><span>Service</span><span>Trab. pend.</span></div>
+      <div class="k"><div>58<small>Equipos</small></div><div>7<small>En taller</small></div><div>12<small>Service venc.</small></div></div>
+      <table><tr><th>Interno</th><th>Equipo</th><th>Estado</th></tr>
+      <tr><td>CF-21</td><td>Motoniveladora</td><td class="g">OPERATIVO</td></tr>
+      <tr><td>CF-08</td><td>Retro 416</td><td class="r">TALLER</td></tr>
+      <tr><td>CA-14</td><td>Camión volcador</td><td class="g">OPERATIVO</td></tr>
+      <tr><td>CF-33</td><td>Rodillo</td><td class="r">SERVICE</td></tr></table>
+    </div></div></div>
+
+  <div class="col"><div class="cap">INGECOV nuevo</div>
+    <div class="tel">
+      <div class="barra"><span class="vol">‹</span><h2>Panel de flota</h2><span class="ic"></span></div>
+      <div class="cont">
+        <div class="tabs"><span class="a">Equipos</span><span>Costos</span><span>Service</span><span>Trab. pend.</span></div>
+        <div class="kpis"><div class="kpi"><b>58</b><span>Equipos</span></div><div class="kpi"><b>7</b><span>En taller</span></div><div class="kpi"><b>12</b><span>Service venc.</span></div></div>
+        <div class="st">Equipos</div>
+        <div class="lista">
+          <div class="it"><div class="x"><b>CF-21 · Motoniveladora</b><small>Obra Autovías · 1.240 h</small></div><span class="est ok">Operativo</span></div>
+          <div class="it"><div class="x"><b>CF-08 · Retro 416</b><small>Taller central · desde 14-oct</small></div><span class="est ma">Taller</span></div>
+          <div class="it"><div class="x"><b>CA-14 · Camión volcador</b><small>Planta · 88.300 km</small></div><span class="est ok">Operativo</span></div>
+          <div class="it"><div class="x"><b>CF-33 · Rodillo</b><small>Service a las 500 h</small></div><span class="est pe">Service</span></div>
+        </div>
+      </div>
+    </div></div>
+
+  <div class="col"><div class="cap">Traslados nuevo</div>
+    <div class="tel">
+      <div class="barra"><span class="vol">‹</span><h2>Traslado de equipos</h2><span class="ic"></span></div>
+      <div class="cont">
+        <div class="tabs"><span class="a">Nuevo</span><span>Historial</span></div>
+        <div class="campo"><span>Equipo</span><div class="inp">Elegí el equipo…</div></div>
+        <div class="campo"><span>Desde</span><div class="inp">Obra Autovías</div></div>
+        <div class="campo"><span>Hacia</span><div class="inp">Elegí la obra…</div></div>
+        <div class="campo"><span>Firma de quien entrega</span><div class="firma">Firmá acá</div></div>
+        <div class="btn">Registrar traslado</div>
+        <div class="btn2">Cancelar</div>
+      </div>
+      <div class="toast">✓ Traslado registrado</div>
+    </div></div>
+
+  <div class="col"><div class="cap">PAVIMAX nuevo (con su logo)</div>
+    <div class="tel">
+      <div class="barra"><span class="vol">‹</span><img src="https://marcoskatz-cmd.github.io/app-ingeco/logo-pavimax.png" alt="PAVIMAX"><h2 style="font-size:1rem;color:var(--t2);font-weight:500">· Pedidos</h2><span class="ic"></span></div>
+      <div class="cont">
+        <div class="tabs"><span class="a">Pedidos</span><span>Producción</span><span>Stock</span></div>
+        <div class="kpis"><div class="kpi"><b>14</b><span>Pendientes</span></div><div class="kpi"><b>32</b><span>Bolsas hoy</span></div><div class="kpi"><b>41 t</b><span>Stock</span></div></div>
+        <div class="st">Próximas entregas</div>
+        <div class="lista">
+          <div class="it"><div class="x"><b>Municipio SMT</b><small>Tanda 2 de 3 · 10 big bag</small></div><span class="est az">Mañana</span></div>
+          <div class="it"><div class="x"><b>Vialidad Prov.</b><small>Emulsión 20 L × 40</small></div><span class="est pe">Embolsando</span></div>
+          <div class="it"><div class="x"><b>Constructora Norte</b><small>6 big bag</small></div><span class="est ok">Entregado</span></div>
+        </div>
+      </div>
+    </div></div>
+</div>
+
+<div class="nota"><b>Qué es común a todos:</b>
+<ul>
+<li>Fondo crema, azul marino como color principal; teal = bien, ámbar = pendiente, naranja oscuro = problema (nada de rojo contra verde).</li>
+<li>Letra Barlow; títulos y números en Barlow Semi Condensed.</li>
+<li>Barra superior clara con "volver a la App", título y ayuda. Pestañas en pastilla. Tarjetas blancas con borde fino. Botones altos (fáciles con guantes / al sol).</li>
+<li>Avisos chiquitos abajo ("✓ Guardado") iguales a los de la App. Sin modo oscuro.</li>
+</ul></div>
+</body></html>
