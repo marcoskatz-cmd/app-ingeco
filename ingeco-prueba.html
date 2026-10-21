@@ -28,7 +28,10 @@
       [{enIframe:false, referrer:'', sesionGuard:true,  ticketEnUrl:false}, 'pestana'],
       [{enIframe:false, referrer:'https://marcoskatz-cmd.github.io/app-ingeco/#inicio', sesionGuard:false, ticketEnUrl:false}, 'pestana'],
       [{enIframe:false, referrer:'https://www.google.com/', sesionGuard:false, ticketEnUrl:false}, 'directo'],
-      [{enIframe:false, referrer:'', sesionGuard:false, ticketEnUrl:false}, 'directo']
+      [{enIframe:false, referrer:'', sesionGuard:false, ticketEnUrl:false}, 'directo'],
+      // Recargó una pestaña que ya se había abierto desde la App (el tk ya no está en la URL)
+      [{enIframe:false, referrer:'', sesionGuard:false, ticketEnUrl:false, marcaPestana:true}, 'pestana'],
+      [{enIframe:true,  referrer:'', sesionGuard:false, ticketEnUrl:false, marcaPestana:true}, 'iframe']
     ];
     casos.forEach(function (c, i) { chequear('contexto caso ' + (i + 1) + ' (esperado ' + c[1] + ')', IG.contexto(c[0]) === c[1]); });
     chequear("color('azul')", IG.color('azul') === '#1e3a8a');
