@@ -10,7 +10,7 @@
 
   function contexto(env) {
     if (env.enIframe) return 'iframe';
-    if (env.ticketEnUrl || env.sesionGuard || String(env.referrer || '').indexOf(APP_URL) === 0) return 'pestana';
+    if (env.marcaPestana || env.ticketEnUrl || env.sesionGuard || String(env.referrer || '').indexOf(APP_URL) === 0) return 'pestana';
     return 'directo';
   }
 
@@ -32,16 +32,20 @@
 
   var enIframe;
   try { enIframe = window.self !== window.top; } catch (e) { enIframe = true; }
-  var sesionGuard = false;
-  try { sesionGuard = !!sessionStorage.getItem('ingeco_guard'); } catch (e) { }
+  var sesionGuard = false, marcaPestana = false;
+  try { sesionGuard = !!sessionStorage.getItem('ingeco_guard'); marcaPestana = !!sessionStorage.getItem('ig_pestana'); } catch (e) { }
 
   window.IG = { APP_URL: APP_URL, contexto: contexto, color: color, paleta: paleta, volver: volver };
-  document.documentElement.dataset.igContexto = contexto({
+  var ctx = contexto({
     enIframe: enIframe,
     referrer: document.referrer,
     sesionGuard: sesionGuard,
-    ticketEnUrl: /[?&]tk=/.test(location.search)
+    ticketEnUrl: /[?&]tk=/.test(location.search),
+    marcaPestana: marcaPestana
   });
+  document.documentElement.dataset.igContexto = ctx;
+  // Recordar que esta pestaña vino de la App: al recargar ya no está el tk en la URL.
+  if (ctx === 'pestana') { try { sessionStorage.setItem('ig_pestana', '1'); } catch (e) { } }
 
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-ig-volver]');
