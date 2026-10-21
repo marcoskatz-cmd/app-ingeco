@@ -1,0 +1,66 @@
+/* INGECO — estilo común. Lo cargan la App y todos los sistemas desde
+   https://marcoskatz-cmd.github.io/app-ingeco/ingeco.css (sin ?v=: siempre la última).
+   Tokens sin capa (pisan el respaldo mínimo de cada sistema); la base de elementos va en
+   @layer ingeco, así cualquier regla propia de un sistema le gana.
+   Paleta segura para daltonismo rojo-verde. Solo modo claro. */
+
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap');
+
+:root {
+  --azul: #1e3a8a;
+  --azul-claro: #2b4fb3;
+  --azul-suave: #e6ecfb;
+  --tinta: #0f1a3d;
+  --teal: #0e8a7a;
+  --teal-suave: #dcf1ee;
+  --ambar: #d98f00;
+  --ambar-suave: #fff1cf;
+  --ambar-texto: #8a5a00;
+  --alerta: #b8410e;
+  --alerta-suave: #fbe6dc;
+  --fondo: #f5f4f0;
+  --fondo-2: #ebe9e3;
+  --superficie: #ffffff;
+  --texto: #171c2e;
+  --texto-2: #5b6274;
+  --texto-3: #8a90a0;
+  --linea: #e2dfd7;
+  --linea-fuerte: #c9c5bb;
+  --radio: 14px;
+  --radio-s: 10px;
+  --sombra: 0 1px 2px rgba(23,28,46,.05);
+  --sombra-media: 0 4px 14px rgba(23,28,46,.10);
+  --sombra-alta: 0 12px 32px rgba(23,28,46,.18);
+  --barra-h: 56px;
+  --nav-h: 62px;
+  --display: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+  --cuerpo: 'Barlow', system-ui, sans-serif;
+  /* Gráficos: azul, teal, ámbar, naranja oscuro, violeta, gris */
+  --g1: #1e3a8a; --g2: #0e8a7a; --g3: #d98f00; --g4: #b8410e; --g5: #6d4ab1; --g6: #5b6274;
+  color-scheme: light;
+}
+
+@layer ingeco {
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { font: 16px/1.45 var(--cuerpo); color: var(--texto); background: var(--fondo); -webkit-font-smoothing: antialiased; }
+  [hidden] { display: none !important; }
+  button { font: inherit; cursor: pointer; color: inherit; }
+  button:focus:not(:focus-visible) { outline: none; }
+  input, select, textarea { font: inherit; padding: 10px 14px; border: 1px solid var(--linea-fuerte); border-radius: var(--radio-s); background: var(--superficie); color: var(--texto); }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--azul-claro); outline-offset: 1px; border-color: var(--azul-claro); }
+  h1, h2, h3, h4 { margin: 0 0 .5rem; font-family: var(--display); letter-spacing: .005em; }
+  h3 { font-size: 1.15rem; font-weight: 600; }
+  h4 { font-size: .8rem; color: var(--texto-2); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+  a { color: var(--azul-claro); }
+  small { color: var(--texto-2); }
+  table { font-variant-numeric: tabular-nums; }
+}
+
+svg.i { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* Flecha "volver a la App": solo se ve si el sistema se abrió desde la App en una pestaña aparte */
+.ig-volver { background: transparent; border: none; color: var(--texto-2); width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; align-items: center; justify-content: center; flex: none; cursor: pointer; }
+.ig-volver:active { background: var(--fondo-2); }
+[data-ig-volver] { display: none; }
+html[data-ig-contexto="pestana"] [data-ig-volver] { display: inline-flex; }
+html[data-ig-contexto="iframe"] [data-ig-ocultar-en-app] { display: none !important; }

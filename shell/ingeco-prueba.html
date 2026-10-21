@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prueba estilo común INGECO</title>
+<link rel="stylesheet" href="ingeco.css">
+<script src="ingeco.js"></script>
+<style>
+  body { padding: 16px; }
+  .muestras { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .muestras div { width: 92px; height: 56px; border-radius: 10px; border: 1px solid var(--linea); display: flex; align-items: flex-end; padding: 4px 6px; font-size: .72rem; }
+  #resultado { font-family: var(--display); font-size: 1.3rem; font-weight: 600; }
+  #resultado.ok { color: var(--teal); } #resultado.mal { color: var(--alerta); }
+</style>
+</head><body>
+<h2>Estilo común INGECO <button data-ig-volver class="ig-volver" aria-label="Volver"><svg class="i" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button></h2>
+<p id="resultado">Corriendo…</p>
+<ul id="fallas"></ul>
+<div class="muestras" id="muestras"></div>
+<p><input placeholder="Un campo"> </p>
+<script>
+(function () {
+  var fallas = [];
+  function chequear(nombre, ok) { if (!ok) fallas.push(nombre); }
+  try {
+    var casos = [
+      [{enIframe:true,  referrer:'', sesionGuard:false, ticketEnUrl:false}, 'iframe'],
+      [{enIframe:true,  referrer:'', sesionGuard:true,  ticketEnUrl:true }, 'iframe'],
+      [{enIframe:false, referrer:'', sesionGuard:false, ticketEnUrl:true }, 'pestana'],
+      [{enIframe:false, referrer:'', sesionGuard:true,  ticketEnUrl:false}, 'pestana'],
+      [{enIframe:false, referrer:'https://marcoskatz-cmd.github.io/app-ingeco/#inicio', sesionGuard:false, ticketEnUrl:false}, 'pestana'],
+      [{enIframe:false, referrer:'https://www.google.com/', sesionGuard:false, ticketEnUrl:false}, 'directo'],
+      [{enIframe:false, referrer:'', sesionGuard:false, ticketEnUrl:false}, 'directo']
+    ];
+    casos.forEach(function (c, i) { chequear('contexto caso ' + (i + 1) + ' (esperado ' + c[1] + ')', IG.contexto(c[0]) === c[1]); });
+    chequear("color('azul')", IG.color('azul') === '#1e3a8a');
+    chequear("color('ambar-texto')", IG.color('ambar-texto') === '#8a5a00');
+    chequear('paleta', IG.paleta().length === 6 && IG.paleta()[0] === '#1e3a8a');
+    chequear('contexto de la página = directo', document.documentElement.dataset.igContexto === 'directo');
+    chequear('flecha oculta en directo', getComputedStyle(document.querySelector('[data-ig-volver]')).display === 'none');
+    chequear('APP_URL', IG.APP_URL === 'https://marcoskatz-cmd.github.io/app-ingeco/');
+    chequear('fuente Barlow en body', /Barlow/.test(getComputedStyle(document.body).fontFamily));
+    ['azul','azul-claro','azul-suave','tinta','teal','teal-suave','ambar','ambar-suave','ambar-texto','alerta','alerta-suave','fondo','fondo-2','superficie','texto','texto-2','texto-3','linea','linea-fuerte','g1','g2','g3','g4','g5','g6'].forEach(function (t) {
+      var d = document.createElement('div'); d.style.background = 'var(--' + t + ')'; d.textContent = t;
+      if (/^(azul|tinta|teal|alerta|g\d|ambar-texto)$/.test(t)) d.style.color = '#fff';
+      document.getElementById('muestras').appendChild(d);
+    });
+  } catch (e) { fallas.push('Excepción: ' + e.message); }
+  var r = document.getElementById('resultado');
+  r.textContent = fallas.length ? 'FALLAS: ' + fallas.length : 'TODO OK';
+  r.className = fallas.length ? 'mal' : 'ok';
+  document.getElementById('fallas').innerHTML = fallas.map(function (f) { return '<li>' + f + '</li>'; }).join('');
+  window.__resultado = r.textContent;
+})();
+</script>
+</body></html>
