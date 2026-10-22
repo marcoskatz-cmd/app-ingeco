@@ -7,9 +7,36 @@
 // completa sola una vez; después manda lo que diga la planilla (editable en Admin).
 const URL_COMBUSTIBLE = 'https://script.google.com/a/macros/grupoingeco.com.ar/s/AKfycbzxtWbL6A6xsXqRBx6yGDuSYKWEBebmc68dXlkgGiU5-BesLfal03PsPxZ8sFRDrCo8Cw/exec';
 
+// Dominio propio (22-oct-2026): las URLs viejas de la planilla se reescriben solas una vez.
+const DOMINIOS_NUEVOS = [
+  ['https://marcoskatz-cmd.github.io/app-ingeco/', 'https://app.ingecosa.com.ar/'],
+  ['https://marcoskatz-cmd.github.io/ingecov/', 'https://ingecov.ingecosa.com.ar/'],
+  ['https://marcoskatz-cmd.github.io/pavimax/', 'https://pavimax.ingecosa.com.ar/'],
+  ['https://marcoskatz-cmd.github.io/obra-autovias/', 'https://autovias.ingecosa.com.ar/'],
+  ['https://marcoskatz-cmd.github.io/tarja-flota/', 'https://tarjas.ingecosa.com.ar/'],
+  ['https://marcoskatz-cmd.github.io/tarja-corrientes/', 'https://corrientes.ingecosa.com.ar/'],
+  ['https://marcoskatz-cmd.github.io/expedientes-ingeco/', 'https://expedientes.ingecosa.com.ar/'],
+  ['https://marcoskatz-cmd.github.io/licitaciones-noa/', 'https://licitaciones.ingecosa.com.ar/'],
+  ['https://marcoskatz-cmd.github.io/rendiciones/', 'https://rendiciones.ingecosa.com.ar/'],
+  ['https://marcoskatz-cmd.github.io/ingeco-ropa/', 'https://ropa.ingecosa.com.ar/'],
+  ['https://marcoskatz-cmd.github.io/trituracion/', 'https://trituracion.ingecosa.com.ar/'],
+  ['https://pedidos-ingeco.vercel.app/', 'https://compras.ingecosa.com.ar/']
+];
+
+function urlNueva_(url) {
+  const u = String(url || '');
+  for (const [viejo, nuevo] of DOMINIOS_NUEVOS) {
+    if (u.indexOf(viejo) === 0) return nuevo + u.slice(viejo.length);
+    if (u === viejo.slice(0, -1)) return nuevo;
+  }
+  return u;
+}
+
 function modulosActivos_() {
   const filas = leer_('MODULOS');
   filas.forEach(m => {
+    const nueva = urlNueva_(m.url);
+    if (m.url && nueva !== m.url) { actualizar_('MODULOS', m._fila, { url: nueva }); m.url = nueva; }
     if (String(m.codigo).toUpperCase() === 'COMBUSTIBLE' && !m.url) {
       // Apps Script del dominio: se abre aparte, embebida falla con varias cuentas.
       actualizar_('MODULOS', m._fila, { url: URL_COMBUSTIBLE, tipo: 'link' });

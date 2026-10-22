@@ -29,7 +29,11 @@ const HOJAS = {
 const _memo = {};
 
 function prop_(clave, obligatoria) {
-  const v = PropertiesService.getScriptProperties().getProperty(clave);
+  let v = PropertiesService.getScriptProperties().getProperty(clave);
+  if (clave === 'SHELL_URL' && v && urlNueva_(v) !== v) {
+    v = urlNueva_(v);
+    PropertiesService.getScriptProperties().setProperty(clave, v);
+  }
   if (!v && obligatoria) throw new Error('Falta la propiedad ' + clave + ' en PropertiesService');
   return v || '';
 }
