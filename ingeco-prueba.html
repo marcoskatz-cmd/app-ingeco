@@ -26,7 +26,7 @@
       [{enIframe:true,  referrer:'', sesionGuard:true,  ticketEnUrl:true }, 'iframe'],
       [{enIframe:false, referrer:'', sesionGuard:false, ticketEnUrl:true }, 'pestana'],
       [{enIframe:false, referrer:'', sesionGuard:true,  ticketEnUrl:false}, 'pestana'],
-      [{enIframe:false, referrer:'https://marcoskatz-cmd.github.io/app-ingeco/#inicio', sesionGuard:false, ticketEnUrl:false}, 'pestana'],
+      [{enIframe:false, referrer:'https://app.ingecosa.com.ar/#inicio', sesionGuard:false, ticketEnUrl:false}, 'pestana'],
       [{enIframe:false, referrer:'https://www.google.com/', sesionGuard:false, ticketEnUrl:false}, 'directo'],
       [{enIframe:false, referrer:'', sesionGuard:false, ticketEnUrl:false}, 'directo'],
       // Recargó una pestaña que ya se había abierto desde la App (el tk ya no está en la URL)
@@ -39,7 +39,7 @@
     chequear('paleta', IG.paleta().length === 6 && IG.paleta()[0] === '#1e3a8a');
     chequear('contexto de la página = directo', document.documentElement.dataset.igContexto === 'directo');
     chequear('flecha oculta en directo', getComputedStyle(document.querySelector('[data-ig-volver]')).display === 'none');
-    chequear('APP_URL', IG.APP_URL === 'https://marcoskatz-cmd.github.io/app-ingeco/');
+    chequear('APP_URL', IG.APP_URL === 'https://app.ingecosa.com.ar/');
     chequear('fuente Barlow en body', /Barlow/.test(getComputedStyle(document.body).fontFamily));
     ['azul','azul-claro','azul-suave','tinta','teal','teal-suave','ambar','ambar-suave','ambar-texto','alerta','alerta-suave','fondo','fondo-2','superficie','texto','texto-2','texto-3','linea','linea-fuerte','g1','g2','g3','g4','g5','g6'].forEach(function (t) {
       var d = document.createElement('div'); d.style.background = 'var(--' + t + ')'; d.textContent = t;

@@ -1,5 +1,5 @@
 /* INGECO — estilo común. Lo cargan la App y todos los sistemas desde
-   https://marcoskatz-cmd.github.io/app-ingeco/ingeco.css (sin ?v=: siempre la última).
+   https://app.ingecosa.com.ar/ingeco.css (sin ?v=: siempre la última).
    Tokens sin capa (pisan el respaldo mínimo de cada sistema); la base de elementos va en
    @layer ingeco, así cualquier regla propia de un sistema le gana.
    Paleta segura para daltonismo rojo-verde. Solo modo claro. */

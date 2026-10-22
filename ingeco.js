@@ -1,12 +1,12 @@
 /* INGECO — comportamiento común de los sistemas. Se carga desde
- *   https://marcoskatz-cmd.github.io/app-ingeco/ingeco.js (sin ?v=, siempre la última)
+ *   https://app.ingecosa.com.ar/ingeco.js (sin ?v=, siempre la última)
  * - Marca <html data-ig-contexto="iframe|pestana|directo"> según cómo se abrió el sistema.
  * - Maneja los botones [data-ig-volver]: en el iframe le avisa a la App, en pestaña navega a la App.
  * - IG.color('azul') / IG.paleta() leen los tokens de ingeco.css (para Chart.js, Leaflet, etc.).
  * Nunca bloquea ni tira errores hacia afuera.
  */
 (function () {
-  var APP_URL = 'https://marcoskatz-cmd.github.io/app-ingeco/';
+  var APP_URL = 'https://app.ingecosa.com.ar/';
 
   function contexto(env) {
     if (env.enIframe) return 'iframe';
