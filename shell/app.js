@@ -5,7 +5,7 @@ const CONFIG = {
   BACKEND_URL: 'https://script.google.com/macros/s/AKfycbx9NN1FfOQjUjfymLXrMyd2QM6l96HP0lxY6RC7_xKsbDlO0PnwdHbaMtag54VYFor0/exec',
   GOOGLE_CLIENT_ID: '1080058000144-q7r1ncjmglg515j0a5rd2dhqu7bt0fpt.apps.googleusercontent.com',
   GOOGLE_HD: 'grupoingeco.com.ar',
-  SHELL_URL: 'https://marcoskatz-cmd.github.io/app-ingeco/',   // URL canónica registrada como redirect_uri en el cliente OAuth
+  SHELL_URL: 'https://app.ingecosa.com.ar/',   // URL canónica registrada como redirect_uri en el cliente OAuth
   REFRESCO_MS: 3 * 60 * 1000,
   VERSION: '1.0.0'
 };
@@ -436,7 +436,7 @@ const GUIA_INSTALAR = `<div class="guia-mod">La app en el celular</div>
 <details class="guia" id="guia-instalar"><summary>Instalar INGECO como app (Android e iPhone)</summary><div class="cuerpo">INGECO es una app web: no se baja de Play Store ni de App Store, se instala desde el navegador en un minuto y después se abre con su ícono, a pantalla completa y con avisos.
 
 <b>Android (Chrome)</b>
-1. Abrí <a href="https://marcoskatz-cmd.github.io/app-ingeco/" target="_blank" rel="noopener">marcoskatz-cmd.github.io/app-ingeco</a> en Chrome.
+1. Abrí <a href="https://app.ingecosa.com.ar/" target="_blank" rel="noopener">app.ingecosa.com.ar</a> en Chrome.
 2. Si aparece el cartel "Agregá INGECO a la pantalla de inicio", tocá <b>Instalar</b> y listo.
 3. Si no aparece: tocá los tres puntos ⋮ (arriba a la derecha) → <b>"Agregar a pantalla principal"</b> o <b>"Instalar app"</b> → <b>Instalar</b>.
 4. El ícono de INGECO queda junto a las demás apps. Abrila siempre desde ahí.

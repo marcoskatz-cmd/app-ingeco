@@ -2,7 +2,7 @@
  * guard.js — guardián de acceso para los sistemas de INGECO.
  *
  * Uso: en el <head> de cada sistema estático (GitHub Pages):
- *   <script src="https://marcoskatz-cmd.github.io/app-ingeco/guard.js" data-modulo="INGECOV"></script>
+ *   <script src="https://app.ingecosa.com.ar/guard.js" data-modulo="INGECOV"></script>
  *
  * Qué hace:
  *  - Si la URL trae ?tk=<ticket> (la app INGECO lo pone al abrir el sistema), lo canjea UNA vez contra el backend
@@ -17,7 +17,7 @@
  */
 (function () {
   var BACKEND = 'https://script.google.com/macros/s/AKfycbx9NN1FfOQjUjfymLXrMyd2QM6l96HP0lxY6RC7_xKsbDlO0PnwdHbaMtag54VYFor0/exec';
-  var APP = 'https://marcoskatz-cmd.github.io/app-ingeco/';
+  var APP = 'https://app.ingecosa.com.ar/';
   var HORAS = 12;
   var script = document.currentScript || (function () { var s = document.getElementsByTagName('script'); return s[s.length - 1]; })();
   var MODULO = String((script && script.getAttribute('data-modulo')) || '').toUpperCase();

@@ -221,7 +221,7 @@ function configurarSecretos() {
     // CLAVE_INGECOV: '...', CLAVE_COMPRAS: '...', CLAVE_COMBUSTIBLE: '...', CLAVE_TARJA: '...', CLAVE_ROPA: '...',
     GOOGLE_CLIENT_ID: '1080058000144-q7r1ncjmglg515j0a5rd2dhqu7bt0fpt.apps.googleusercontent.com',
     GOOGLE_HD: 'grupoingeco.com.ar',
-    SHELL_URL: 'https://marcoskatz-cmd.github.io/app-ingeco/',
+    SHELL_URL: 'https://app.ingecosa.com.ar/',
     ADMIN_NOMBRE: 'Marcos'
     // ADMIN_CELULAR: '549381...'
   }, false);
