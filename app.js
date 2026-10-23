@@ -169,14 +169,18 @@ $('btn-salir').onclick = async () => {
 };
 
 function entrar() {
+  // Bandeja guardada: la campana y el bloque Hoy aparecen al instante; refrescar() la pone al día.
+  if (!S.avisos) { try { const c = JSON.parse(localStorage.getItem('ingeco_bandeja') || 'null'); if (c) { S.avisos = c.avisos; S.sinLeer = c.sinLeer; S.totalSinLeer = c.total; } } catch (e) { } }
+  pintarCampana();
   mostrarVista('inicio');
   enrutar();
   refrescar();
   clearInterval(S.timer);
   S.timer = setInterval(() => { if (document.visibilityState === 'visible') refrescar(true); }, CONFIG.REFRESCO_MS);
   setTimeout(gestionarPush, 1500);
+  setTimeout(precargarTickets, 2000);
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.token && S.perfil) refrescar(true); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.token && S.perfil) { refrescar(true); precargarTickets(); } });
 
 /** Perfil + bandeja en una pasada (dos llamadas en paralelo). */
 async function refrescar(silencioso) {
@@ -307,8 +311,32 @@ function urlConTicket(url, ticket) {
   try { const u = new URL(url, location.href); u.searchParams.set('tk', ticket); return u.toString(); }
   catch (e) { return url + (url.includes('?') ? '&' : '?') + 'tk=' + encodeURIComponent(ticket); }
 }
+// Tickets precargados para los sistemas más usados: abrirlos no espera los ~3 s del backend.
+// El backend los acepta 5 minutos; acá se usan hasta los 4.
+const TK_VIDA_MS = 4 * 60 * 1000;
+const tkPool = {};
+function contarUso(cod) {
+  try { const u = JSON.parse(localStorage.getItem('ingeco_uso') || '{}'); u[cod] = (u[cod] || 0) + 1; localStorage.setItem('ingeco_uso', JSON.stringify(u)); } catch (e) { }
+}
+function modulosFrecuentes() {
+  let u = {}; try { u = JSON.parse(localStorage.getItem('ingeco_uso') || '{}'); } catch (e) { }
+  return ((S.perfil && S.perfil.modulos) || []).filter(m => m.url && u[m.codigo]).sort((a, b) => u[b.codigo] - u[a.codigo]).slice(0, 3).map(m => m.codigo);
+}
+function precargarTickets() {
+  if (!S.token || document.visibilityState !== 'visible') return;
+  modulosFrecuentes().forEach(async cod => {
+    const p = tkPool[cod];
+    if (p && (p.pendiente || Date.now() - p.t < TK_VIDA_MS)) return;
+    tkPool[cod] = { pendiente: true };
+    const r = await api('ticket', { modulo: cod }, { silencioso: true });
+    if (r.ok) tkPool[cod] = { tk: r.ticket, t: Date.now() }; else delete tkPool[cod];
+  });
+}
 /** Pide un ticket de un solo uso para abrir el módulo. Un link copiado no sirve fuera de la app. */
 async function ticketPara(codigo) {
+  contarUso(codigo);
+  const p = tkPool[codigo];
+  if (p && p.tk && Date.now() - p.t < TK_VIDA_MS) { delete tkPool[codigo]; setTimeout(precargarTickets, 1000); return p.tk; }
   const r = await api('ticket', { modulo: codigo });
   if (!r.ok) { toast(r.error || 'No se pudo abrir', 'mal'); return null; }
   return r.ticket;
@@ -423,7 +451,12 @@ async function abrirDestino(a) {
     $('modulo-frame').src = urlConToken(u); location.hash = '#modulo/' + encodeURIComponent(m.codigo);
   } else location.href = urlConToken(u);
 }
-$('btn-todo-leido').onclick = async () => { await api('marcar_leido', { todos: true }); await refrescar(true); toast('Listo', 'ok'); };
+$('btn-todo-leido').onclick = async () => {
+  (S.avisos || []).forEach(a => { a.leido = true; }); S.totalSinLeer = 0; S.sinLeer = {};
+  pintarCampana(); verBandeja(); toast('Listo', 'ok');
+  const r = await api('marcar_leido', { todos: true }, { silencioso: true });
+  if (!r.ok) { toast(r.error, 'mal'); refrescar(true); }
+};
 
 // ───────────────────────── Ayuda (bot) ─────────────────────────
 let ayudaCtx = '';
