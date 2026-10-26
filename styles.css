@@ -106,7 +106,7 @@ body.en-inicio .barra-logo { display: block; } body.en-inicio #barra-titulo { di
 .tile .badge { position: absolute; top: -5px; right: -5px; font-style: normal; background: var(--ambar); color: #0f1a3d; border: 2px solid var(--fondo); height: 20px; line-height: 16px; min-width: 20px; }
 .k-flota { --c: #1e3a8a } .k-compras { --c: #3f51b5 } .k-combustible { --c: #b45309 } .k-tarja { --c: #0e8a7a } .k-ropa { --c: #4f6fa8 }
 .k-pavimax { --c: #0b6b3a } .k-planta { --c: #14532d } .k-traslados { --c: #0369a1 } .k-trituracion { --c: #6b5b4d } .k-licitaciones { --c: #6d4ab1 }
-.k-locales { --c: #0a6fe8 } .k-autovias { --c: #c2410c } .k-expedientes { --c: #0f766e } .k-demarcacion { --c: #a16207 } .k-baches { --c: #9a3412 } .k-dashboard { --c: #1b3a5c } .k-generico { --c: #5b6274 }
+.k-locales { --c: #0a6fe8 } .k-autovias { --c: #c2410c } .k-asfalto { --c: #1f2937 } .k-expedientes { --c: #0f766e } .k-demarcacion { --c: #a16207 } .k-baches { --c: #9a3412 } .k-dashboard { --c: #1b3a5c } .k-generico { --c: #5b6274 }
 .tiles.terminal .k-compras { --c: #1d4ed8 }
 
 /* Feed de últimos avisos */

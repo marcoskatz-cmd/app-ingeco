@@ -211,6 +211,7 @@ const ICONOS = {
   ropa: '<path d="M8 4l4 2 4-2 4 3-2 3-2-1v12H8V9L6 10 4 7z"/>',
   pavimax: '<path d="M9 3h6l-1 3h-4zM8 6h8c3.5 3 4.5 6 4.5 9a6 6 0 0 1-6 6h-5a6 6 0 0 1-6-6c0-3 1-6 4.5-9z"/>',
   planta: '<path d="M3 21V10l5 3v-3l5 3v-3l5 3v8zM3 21h18M7 17h2M11 17h2M15 17h2"/>',
+  asfalto: '<rect x="4" y="5" width="16" height="14" rx="3"/><path d="M4 12c3-2 5 2 8 0s5-2 8 0M8 19v2M16 19v2M9 2h6"/>',
   traslados: '<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/><path d="M6 4l-2 3 2 3"/>',
   trituracion: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 3v9m0 0l8-4.5M12 12l-8-4.5M12 12l3 9M12 12l-5 7"/>',
   licitaciones: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8 12h8M8 16h5"/><circle cx="16" cy="17" r="2.5"/>',
@@ -223,8 +224,8 @@ const ICONOS = {
   admin: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
   generico: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'
 };
-const ICONO_POR_CODIGO = { INGECOV: 'flota', COMPRAS: 'compras', COMBUSTIBLE: 'combustible', TARJA: 'tarja', ROPA: 'ropa', PAVIMAX: 'pavimax', PAVIMAX_OP: 'planta', TRASLADOS: 'traslados', TRITURACION: 'trituracion', LICITACIONES: 'licitaciones', LOCALES_TERMINAL: 'locales', PEDIDOS_TERMINAL: 'compras', AUTOVIAS: 'autovias', EXPEDIENTES: 'expedientes', DASHBOARD: 'dashboard', DEMARCACION: 'demarcacion', DEMARCACION_MON: 'demarcacion', BACHES: 'baches', AVISOS: 'avisos', ADMIN: 'admin' };
-const ICONO_POR_NOMBRE = [[/flota|manten/i, 'flota'], [/compra|pedido|orden/i, 'compras'], [/combust|gasoil/i, 'combustible'], [/tarja|hora/i, 'tarja'], [/ropa|indument/i, 'ropa'], [/operario|planta/i, 'planta'], [/pavimax/i, 'pavimax'], [/traslad/i, 'traslados'], [/tritur|árido/i, 'trituracion'], [/licitac/i, 'licitaciones'], [/local|alquiler/i, 'locales'], [/autov|bacheo/i, 'autovias'], [/expedient/i, 'expedientes'], [/demarc/i, 'demarcacion'], [/bache|waze/i, 'baches']];
+const ICONO_POR_CODIGO = { INGECOV: 'flota', COMPRAS: 'compras', COMBUSTIBLE: 'combustible', TARJA: 'tarja', ROPA: 'ropa', PAVIMAX: 'pavimax', PAVIMAX_OP: 'planta', TRASLADOS: 'traslados', TRITURACION: 'trituracion', LICITACIONES: 'licitaciones', LOCALES_TERMINAL: 'locales', PEDIDOS_TERMINAL: 'compras', AUTOVIAS: 'autovias', ASFALTO: 'asfalto', EXPEDIENTES: 'expedientes', DASHBOARD: 'dashboard', DEMARCACION: 'demarcacion', DEMARCACION_MON: 'demarcacion', BACHES: 'baches', AVISOS: 'avisos', ADMIN: 'admin' };
+const ICONO_POR_NOMBRE = [[/flota|manten/i, 'flota'], [/compra|pedido|orden/i, 'compras'], [/combust|gasoil/i, 'combustible'], [/tarja|hora/i, 'tarja'], [/ropa|indument/i, 'ropa'], [/operario|planta/i, 'planta'], [/pavimax/i, 'pavimax'], [/traslad/i, 'traslados'], [/tritur|árido/i, 'trituracion'], [/licitac/i, 'licitaciones'], [/local|alquiler/i, 'locales'], [/autov|bacheo/i, 'autovias'], [/asfalt/i, 'asfalto'], [/expedient/i, 'expedientes'], [/demarc/i, 'demarcacion'], [/bache|waze/i, 'baches']];
 function claveIcono(m) {
   const cod = String(m.codigo || '').toUpperCase();
   let k = ICONO_POR_CODIGO[cod];
