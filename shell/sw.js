@@ -1,5 +1,5 @@
 /* Service worker INGECO: caché del shell + recepción de push. */
-const CACHE = 'ingeco-shell-v25';
+const CACHE = 'ingeco-shell-v26';
 const SHELL = ['./', './index.html', './app.js', './styles.css', './ingeco.css', './ingeco.js', './manifest.json', './icon-192.png', './icon-512.png', './logo.png', './logo-pavimax.png', './logo-terminal.png'];
 
 self.addEventListener('install', e => {
