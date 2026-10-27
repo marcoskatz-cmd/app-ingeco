@@ -92,7 +92,7 @@ function mostrarVista(v) {
 // ───────────────────────── Router por hash ─────────────────────────
 function irA(hash) { if (location.hash !== hash) location.hash = hash; else enrutar(); }
 function enrutar() {
-  const [ruta, arg] = location.hash.replace(/^#/, '').split('/');
+  const [ruta, arg, ...resto] = location.hash.replace(/^#/, '').split('/');
   if (ruta === 'sesion' && arg) {
     // Vuelta del login por redirección: el backend ya creó la sesión.
     S.token = decodeURIComponent(arg); localStorage.setItem('ingeco_token', S.token);
@@ -102,9 +102,13 @@ function enrutar() {
   }
   if (ruta === 'error') { history.replaceState(null, '', location.pathname); mostrarVista('login'); $('login-error').textContent = decodeURIComponent(arg || 'No se pudo entrar'); return; }
   if (ruta === 'ver') { if (arg) { S.lectorToken = arg; localStorage.setItem('ingeco_lector', arg); } verLector(); return; }
-  if (!S.token || !S.perfil) { if (S.lectorToken) verLector(); return; }
+  if (!S.token || !S.perfil) {
+    // Link profundo a un módulo (p. ej. aprobar OC desde WhatsApp): se recuerda y se abre después del login.
+    if (ruta === 'modulo') try { sessionStorage.setItem('ingeco_destino', location.hash); } catch (e) { }
+    if (S.lectorToken) verLector(); return;
+  }
   switch (ruta) {
-    case 'modulo': abrirModulo(decodeURIComponent(arg || '')); break;
+    case 'modulo': abrirModulo(decodeURIComponent(arg || ''), resto.length ? decodeURIComponent(resto.join('/')) : ''); break;
     case 'bandeja': verBandeja(); break;
     case 'ayuda': verAyuda(arg ? decodeURIComponent(arg) : (S.moduloActual && S.moduloActual.codigo)); break;
     case 'admin': if (S.perfil.es_admin) verAdmin(); else irA('#inicio'); break;
@@ -145,7 +149,9 @@ async function procesarRetornoGoogle() {
   if (!r.ok) { $('login-error').textContent = r.error; return true; }
   S.token = r.token; localStorage.setItem('ingeco_token', r.token);
   guardarPerfil(r);
-  location.hash = '#inicio';
+  let destino = '';
+  try { destino = sessionStorage.getItem('ingeco_destino') || ''; sessionStorage.removeItem('ingeco_destino'); } catch (e) { }
+  location.hash = destino || '#inicio';
   entrar();
   return true;
 }
@@ -308,6 +314,11 @@ function verInicio() {
 }
 
 // ───────────────────────── Módulo ─────────────────────────
+function conExtra(url, extra) {
+  if (!extra) return url;
+  try { const u = new URL(url, location.href); new URLSearchParams(extra).forEach((v, k) => u.searchParams.set(k, v)); return u.toString(); }
+  catch (e) { return url + (url.includes('?') ? '&' : '?') + extra; }
+}
 function urlConTicket(url, ticket) {
   try { const u = new URL(url, location.href); u.searchParams.set('tk', ticket); return u.toString(); }
   catch (e) { return url + (url.includes('?') ? '&' : '?') + 'tk=' + encodeURIComponent(ticket); }
@@ -342,12 +353,13 @@ async function ticketPara(codigo) {
   if (!r.ok) { toast(r.error || 'No se pudo abrir', 'mal'); return null; }
   return r.ticket;
 }
-async function abrirModulo(codigo) {
+/** `extra` = parámetros que el link profundo le pasa al módulo ("aprobar=1234,1240"). */
+async function abrirModulo(codigo, extra) {
   const m = S.perfil.modulos.find(x => x.codigo === codigo);
   if (!m) { toast('No tenés acceso a ese módulo. Pedíselo a Marcos.', 'mal'); return irA('#inicio'); }
   if (!m.url) { toast('Ese módulo todavía no está conectado.', 'mal'); return irA('#inicio'); }
   const tk = await ticketPara(m.codigo); if (!tk) return irA('#inicio');
-  const urlConToken = u => urlConTicket(u, tk);
+  const urlConToken = u => urlConTicket(conExtra(u, extra), tk);
   // Las web apps de Apps Script no se dejan embeber cuando el usuario está logueado en Workspace
   // (Google las redirige a /a/macros/<dominio>/ con X-Frame-Options SAMEORIGIN): siempre pestaña completa.
   if (m.tipo === 'link' || /script\.google\.com/.test(m.url)) {
@@ -1057,7 +1069,10 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   }
   if (/^#(ver|sesion|error)\//.test(location.hash)) { enrutar(); return; }
   if (/[#&]id_token=|[#&]error=/.test(location.hash)) { if (await procesarRetornoGoogle()) return; }
-  if (!S.token) { if (S.lectorToken) { verLector(); return; } mostrarVista('login'); return; }
+  if (!S.token) {
+    if (/^#modulo\//.test(location.hash)) try { sessionStorage.setItem('ingeco_destino', location.hash); } catch (e) { }
+    if (S.lectorToken) { verLector(); return; } mostrarVista('login'); return;
+  }
   // Arranque rápido con el perfil cacheado; se valida en segundo plano.
   try { S.perfil = JSON.parse(localStorage.getItem('ingeco_perfil') || 'null'); } catch (e) { S.perfil = null; }
   if (S.perfil) { entrar(); return; }
