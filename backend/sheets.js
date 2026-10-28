@@ -81,7 +81,46 @@ function leer_(nombre) {
   return filas;
 }
 
-function invalidar_(nombre) { delete _memo[nombre]; }
+function invalidar_(nombre) { delete _memo[nombre]; delete _memo['cola:' + nombre]; }
+
+/** Busca UNA fila por valor exacto de una columna sin leer la hoja entera (TextFinder). Para hojas que crecen. */
+function buscar_(nombre, campo, valor) {
+  if (!valor) return null;
+  if (_memo[nombre]) return _memo[nombre].find(x => String(x[campo]) === String(valor)) || null;
+  const sh = hoja_(nombre);
+  const enc = encabezados_(nombre);
+  const col = enc.indexOf(campo);
+  const n = sh.getLastRow();
+  if (col < 0 || n < 2) return null;
+  const celda = sh.getRange(2, col + 1, n - 1, 1).createTextFinder(String(valor)).matchEntireCell(true).findNext();
+  if (!celda) return null;
+  const fila = celda.getRow();
+  const v = sh.getRange(fila, 1, 1, enc.length).getValues()[0];
+  const o = { _fila: fila };
+  enc.forEach((h, j) => { if (h) o[h] = v[j]; });
+  return o;
+}
+
+/** Últimas `max` filas (las hojas de avisos crecen todo el año; lo viejo no hace falta para la bandeja). */
+function leerCola_(nombre, max) {
+  const k = 'cola:' + nombre;
+  if (_memo[nombre]) return _memo[nombre].slice(-max);
+  if (_memo[k]) return _memo[k];
+  const sh = hoja_(nombre);
+  const enc = encabezados_(nombre);
+  const n = sh.getLastRow();
+  const filas = [];
+  if (n > 1) {
+    const desde = Math.max(2, n - max + 1);
+    sh.getRange(desde, 1, n - desde + 1, enc.length).getValues().forEach((v, i) => {
+      const o = { _fila: desde + i };
+      enc.forEach((h, j) => { if (h) o[h] = v[j]; });
+      filas.push(o);
+    });
+  }
+  _memo[k] = filas;
+  return filas;
+}
 
 /** Si el objeto trae columnas del esquema que la hoja todavía no tiene (migración), las agrega. */
 function asegurarColumnasDe_(nombre, obj) {

@@ -86,7 +86,7 @@ function crearSesion_(legajo, dispositivo) {
 /** Devuelve {usuario, sesion} o null. Renueva ultimo_uso/expira (como máximo una vez por hora). */
 function sesionDe_(token) {
   if (!token) return null;
-  const s = leer_('SESIONES').find(x => x.token === token);
+  const s = buscar_('SESIONES', 'token', token);
   if (!s) return null;
   if (s.expira && new Date(s.expira).getTime() < Date.now()) { borrarFila_('SESIONES', s._fila); return null; }
   const u = leer_('USUARIOS').find(x => String(x.legajo) === String(s.legajo));
@@ -152,7 +152,7 @@ function crearTicket_(ctx, payload) {
 function validarTicket_(payload) {
   const t = String(payload.ticket || '');
   if (!t) return { ok: false, error: 'Falta ticket' };
-  const fila = leer_('TICKETS').find(x => x.ticket === t);
+  const fila = buscar_('TICKETS', 'ticket', t);
   if (!fila) return { ok: false, error: 'Abrí este sistema desde la app INGECO.' };
   if (fila.usado) return { ok: false, error: 'Este link ya fue usado. Abrí el sistema desde la app INGECO.' };
   if (Date.now() - new Date(fila.creado).getTime() > TICKET_MIN * 60000) return { ok: false, error: 'El link venció. Abrí el sistema desde la app INGECO.' };
@@ -180,7 +180,7 @@ function identidadModulo_(u, modulo) {
 function validarSesionModulo_(payload) {
   const s = String(payload.sesion || '');
   if (!s) return { ok: false, error: 'Falta sesión' };
-  const fila = leer_('TICKETS').find(x => x.sesion === s);
+  const fila = buscar_('TICKETS', 'sesion', s);
   if (!fila || !fila.usado) return { ok: false, error: 'Sesión inválida. Abrí el sistema desde la app INGECO.' };
   if (Date.now() - new Date(fila.usado).getTime() > SESION_MODULO_H * 3600000) return { ok: false, error: 'La sesión venció. Abrí el sistema desde la app INGECO.' };
   const modulo = payload.modulo ? String(payload.modulo).toUpperCase() : null;
@@ -190,9 +190,16 @@ function validarSesionModulo_(payload) {
   return identidadModulo_(u, modulo || fila.modulo);
 }
 
-/** Limpieza (trigger nocturno): tickets de más de un día. */
+/** Limpieza (trigger nocturno): tickets cuya sesión de módulo ya venció. */
 function limpiarTickets() {
-  const lim = Date.now() - 2 * 86400000;
-  leer_('TICKETS').filter(x => x.creado && new Date(x.creado).getTime() < lim).sort((a, b) => b._fila - a._fila).forEach(x => hoja_('TICKETS').deleteRow(x._fila));
+  const lim = Date.now() - (SESION_MODULO_H + 1) * 3600000;
+  // En bloque: borrar fila por fila con miles de tickets se cortaba por tiempo y la hoja no paraba de crecer.
+  const sh = hoja_('TICKETS');
+  const enc = encabezados_('TICKETS');
+  const quedan = leer_('TICKETS').filter(x => !(x.creado && new Date(x.creado).getTime() < lim));
+  const n = sh.getLastRow();
+  if (n > 1) sh.getRange(2, 1, n - 1, enc.length).clearContent();
+  if (quedan.length) sh.getRange(2, 1, quedan.length, enc.length).setValues(quedan.map(x => enc.map(h => x[h] === undefined ? '' : x[h])));
+  if (n > quedan.length + 1) sh.deleteRows(quedan.length + 2, n - quedan.length - 1);
   invalidar_('TICKETS');
 }

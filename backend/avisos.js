@@ -74,7 +74,7 @@ function notificarInterno_(p) {
   if (claveUnica) {
     const dias = Number(p.dias_unica || 30);
     const desde = Date.now() - dias * 86400000;
-    if (leer_('AVISOS').some(a => a.clave_unica === claveUnica && a.fecha && new Date(a.fecha).getTime() >= desde)) return { ok: true, repetido: true, avisos: [] };
+    if (leerCola_('AVISOS', AVISOS_COLA).some(a => a.clave_unica === claveUnica && a.fecha && new Date(a.fecha).getTime() >= desde)) return { ok: true, repetido: true, avisos: [] };
   }
 
   const fecha = ahora_();
@@ -109,12 +109,15 @@ function avisarAdmin_(titulo, cuerpo) {
 
 // ───────────────────────── Bandeja ─────────────────────────
 
+// La bandeja mira solo los últimos avisos: la hoja crece todo el año y leerla entera hacía lenta la app.
+const AVISOS_COLA = 4000;
+
 function bandeja_(ctx, payload) { return bandejaDe_(ctx.usuario.legajo, payload); }
 
 function bandejaDe_(legajoRaw, payload) {
   const legajo = String(legajoRaw);
   const limite = Number((payload || {}).limite || 100);
-  const avisos = leer_('AVISOS')
+  const avisos = leerCola_('AVISOS', AVISOS_COLA)
     .filter(a => String(a.legajo) === legajo)
     .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
     .slice(0, limite)
@@ -123,7 +126,7 @@ function bandejaDe_(legajoRaw, payload) {
       url_destino: a.url_destino, prioridad: a.prioridad, leido: si_(a.leido)
     }));
   const sinLeer = {};
-  leer_('AVISOS').forEach(a => { if (String(a.legajo) === legajo && !si_(a.leido)) sinLeer[a.modulo] = (sinLeer[a.modulo] || 0) + 1; });
+  leerCola_('AVISOS', AVISOS_COLA).forEach(a => { if (String(a.legajo) === legajo && !si_(a.leido)) sinLeer[a.modulo] = (sinLeer[a.modulo] || 0) + 1; });
   return { ok: true, avisos, sin_leer: sinLeer, total_sin_leer: Object.keys(sinLeer).reduce((s, k) => s + sinLeer[k], 0) };
 }
 
@@ -137,7 +140,7 @@ function marcarLeidoDe_(legajoRaw, payload) {
   const enc = encabezados_('AVISOS');
   const cLeido = enc.indexOf('leido') + 1, cFecha = enc.indexOf('fecha_leido') + 1;
   let n = 0;
-  leer_('AVISOS').forEach(a => {
+  leerCola_('AVISOS', AVISOS_COLA).forEach(a => {
     if (String(a.legajo) !== legajo || si_(a.leido)) return;
     if (ids && ids.indexOf(String(a.id)) < 0) return;
     sh.getRange(a._fila, cLeido).setValue('sí');

@@ -73,7 +73,7 @@ const ADMIN = {
   admin_diagnostico: ctx => { requiereAdmin_(ctx); return Object.assign({ ok: true }, diagnostico_()); }
 };
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 
 function json_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
