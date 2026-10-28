@@ -144,7 +144,9 @@ function crearTicket_(ctx, payload) {
   if (!modulo) return { ok: false, error: 'Falta módulo' };
   if (!tienePermiso_(ctx.usuario.legajo, modulo) && !tienePermiso_(ctx.usuario.legajo, 'ADMIN')) return { ok: false, error: 'Sin permiso para ' + modulo };
   const ticket = generarToken_();
-  agregar_('TICKETS', { ticket, legajo: ctx.usuario.legajo, modulo, creado: ahora_(), usado: '' });
+  // Solo en caché (vive 5 min): escribir en la planilla acá costaba ~1 s en cada apertura.
+  // La fila en TICKETS se escribe al canjearlo, cuando nace la sesión de módulo de 12 h.
+  cache_().put('tk:' + ticket, JSON.stringify({ legajo: ctx.usuario.legajo, modulo, creado: Date.now() }), TICKET_MIN * 60);
   return { ok: true, ticket };
 }
 
@@ -152,8 +154,20 @@ function crearTicket_(ctx, payload) {
 function validarTicket_(payload) {
   const t = String(payload.ticket || '');
   if (!t) return { ok: false, error: 'Falta ticket' };
+  const enCache = cache_().get('tk:' + t);
+  if (enCache) {
+    cache_().remove('tk:' + t);
+    const c = JSON.parse(enCache);
+    if (payload.modulo && String(c.modulo).toUpperCase() !== String(payload.modulo).toUpperCase()) return { ok: false, error: 'Este link es de otro sistema.' };
+    const uc = leer_('USUARIOS').find(x => String(x.legajo) === String(c.legajo));
+    if (!uc || !si_(uc.activo)) return { ok: false, error: 'Usuario inactivo' };
+    const sesionC = generarToken_();
+    agregar_('TICKETS', { ticket: t, legajo: c.legajo, modulo: c.modulo, creado: new Date(c.creado), usado: ahora_(), sesion: sesionC });
+    cache_().put('ses:' + sesionC, JSON.stringify({ legajo: c.legajo, modulo: c.modulo, usado: Date.now() }), 21600);
+    return Object.assign(identidadModulo_(uc, c.modulo), { sesion: sesionC });
+  }
   const fila = buscar_('TICKETS', 'ticket', t);
-  if (!fila) return { ok: false, error: 'Abrí este sistema desde la app INGECO.' };
+  if (!fila) return { ok: false, error: 'Este link ya fue usado o venció. Abrí el sistema desde la app INGECO.' };
   if (fila.usado) return { ok: false, error: 'Este link ya fue usado. Abrí el sistema desde la app INGECO.' };
   if (Date.now() - new Date(fila.creado).getTime() > TICKET_MIN * 60000) return { ok: false, error: 'El link venció. Abrí el sistema desde la app INGECO.' };
   const modulo = payload.modulo ? String(payload.modulo).toUpperCase() : null;
@@ -180,7 +194,10 @@ function identidadModulo_(u, modulo) {
 function validarSesionModulo_(payload) {
   const s = String(payload.sesion || '');
   if (!s) return { ok: false, error: 'Falta sesión' };
-  const fila = buscar_('TICKETS', 'sesion', s);
+  // Cada sistema la valida al cargar: primero la caché (6 h), después la planilla.
+  const enCache = cache_().get('ses:' + s);
+  const fila = enCache ? JSON.parse(enCache) : buscar_('TICKETS', 'sesion', s);
+  if (fila && !enCache && fila.usado) { try { cache_().put('ses:' + s, JSON.stringify({ legajo: fila.legajo, modulo: fila.modulo, usado: new Date(fila.usado).getTime() }), 21600); } catch (e) { } }
   if (!fila || !fila.usado) return { ok: false, error: 'Sesión inválida. Abrí el sistema desde la app INGECO.' };
   if (Date.now() - new Date(fila.usado).getTime() > SESION_MODULO_H * 3600000) return { ok: false, error: 'La sesión venció. Abrí el sistema desde la app INGECO.' };
   const modulo = payload.modulo ? String(payload.modulo).toUpperCase() : null;

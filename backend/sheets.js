@@ -42,6 +42,7 @@ function ss_() {
   if (_memo.__ss) return _memo.__ss;
   const id = prop_('SPREADSHEET_ID', true);
   _memo.__ss = SpreadsheetApp.openById(id);
+  marca_('abrir');
   return _memo.__ss;
 }
 
@@ -56,15 +57,32 @@ function hoja_(nombre) {
   return sh;
 }
 
+// Cada lectura a la planilla cuesta 0,3–0,6 s aunque la hoja sea chica, y un pedido leía 4 o 5.
+// Las tablas chicas que se leen en TODOS los pedidos se guardan en la caché del script; cualquier
+// escritura hecha por este código las invalida. Si alguien edita la planilla a mano, se ve en ≤ 2 min.
+const CACHEABLES = { USUARIOS: 1, PERMISOS: 1, MODULOS: 1, SESIONES: 1 };
+const CACHE_SEG = 120;
+function cache_() { return CacheService.getScriptCache(); }
+
 function encabezados_(nombre) {
+  const k = 'enc:' + nombre;
+  if (_memo[k]) return _memo[k];
+  const c = cache_().get(k);
+  if (c) return (_memo[k] = JSON.parse(c));
   const sh = hoja_(nombre);
   const ancho = Math.max(sh.getLastColumn(), 1);
-  return sh.getRange(1, 1, 1, ancho).getValues()[0].map(h => String(h).trim());
+  const enc = sh.getRange(1, 1, 1, ancho).getValues()[0].map(h => String(h).trim());
+  try { cache_().put(k, JSON.stringify(enc), 21600); } catch (e) { }
+  return (_memo[k] = enc);
 }
 
 /** Devuelve [{...campos, _fila}] con _fila = número de fila real (base 1). */
 function leer_(nombre) {
   if (_memo[nombre]) return _memo[nombre];
+  if (CACHEABLES[nombre]) {
+    const c = cache_().get('tab:' + nombre);
+    if (c) { marca_(nombre + '(caché)'); return (_memo[nombre] = JSON.parse(c)); }
+  }
   const sh = hoja_(nombre);
   const enc = encabezados_(nombre);
   const n = sh.getLastRow();
@@ -78,14 +96,20 @@ function leer_(nombre) {
     });
   }
   _memo[nombre] = filas;
+  if (CACHEABLES[nombre]) { try { cache_().put('tab:' + nombre, JSON.stringify(filas), CACHE_SEG); } catch (e) { } }
+  marca_(nombre + '(' + filas.length + ')');
   return filas;
 }
 
-function invalidar_(nombre) { delete _memo[nombre]; delete _memo['cola:' + nombre]; }
+function invalidar_(nombre) {
+  delete _memo[nombre]; delete _memo['cola:' + nombre];
+  if (CACHEABLES[nombre]) cache_().remove('tab:' + nombre);
+}
 
 /** Busca UNA fila por valor exacto de una columna sin leer la hoja entera (TextFinder). Para hojas que crecen. */
 function buscar_(nombre, campo, valor) {
   if (!valor) return null;
+  if (CACHEABLES[nombre]) return leer_(nombre).find(x => String(x[campo]) === String(valor)) || null;
   if (_memo[nombre]) return _memo[nombre].find(x => String(x[campo]) === String(valor)) || null;
   const sh = hoja_(nombre);
   const enc = encabezados_(nombre);
@@ -93,6 +117,7 @@ function buscar_(nombre, campo, valor) {
   const n = sh.getLastRow();
   if (col < 0 || n < 2) return null;
   const celda = sh.getRange(2, col + 1, n - 1, 1).createTextFinder(String(valor)).matchEntireCell(true).findNext();
+  marca_('buscar ' + nombre + '(' + n + ')');
   if (!celda) return null;
   const fila = celda.getRow();
   const v = sh.getRange(fila, 1, 1, enc.length).getValues()[0];
@@ -119,6 +144,7 @@ function leerCola_(nombre, max) {
     });
   }
   _memo[k] = filas;
+  marca_('cola ' + nombre + '(' + filas.length + ')');
   return filas;
 }
 
@@ -177,6 +203,7 @@ function asegurarColumnas_() {
     }
   });
   Object.keys(_memo).forEach(k => delete _memo[k]);
+  if (agregadas.length) cache_().removeAll(Object.keys(HOJAS).map(h => 'enc:' + h).concat(Object.keys(CACHEABLES).map(h => 'tab:' + h)));
   return agregadas;
 }
 

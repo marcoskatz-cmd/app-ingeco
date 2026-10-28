@@ -75,7 +75,12 @@ const ADMIN = {
 
 const VERSION = '1.2.0';
 
+// Tiempos por etapa del pedido (se devuelven en _perf para diagnosticar lentitud).
+const _perf = { t0: Date.now(), marcas: [] };
+function marca_(q) { _perf.marcas.push(q + ':' + (Date.now() - _perf.t0)); }
+
 function json_(obj) {
+  if (obj && typeof obj === 'object' && !Array.isArray(obj)) { marca_('fin'); obj._perf = _perf.marcas.join(' '); }
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -120,7 +125,9 @@ function doPost(e) {
   try {
     if (PUBLICAS[accion]) return json_(PUBLICAS[accion](payload));
 
+    marca_('inicio');
     const ctx = sesionDe_(req.token);
+    marca_('sesion');
     if (!ctx) return json_({ ok: false, error: 'Tu sesión venció. Volvé a entrar con tu cuenta de Google.', relogin: true });
 
     if (USUARIO[accion]) return json_(USUARIO[accion](ctx, payload));
