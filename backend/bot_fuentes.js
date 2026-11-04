@@ -5,8 +5,8 @@
  * El bot solo puede leer las fuentes de los módulos que la persona tiene en PERMISOS.
  * Agregar un sistema = agregar entradas acá (ver docs/integracion-modulos.md, "IngeBot").
  *
- * planilla: {id} fijo o {prop} nombre de Script Property con el ID (para planillas que
- *           cambian o no deben quedar en el repo público).
+ * planilla: {id} fijo, o {prop, id_defecto}: Script Property que pisa el ID por defecto (para
+ *           planillas que pueden cambiar sin redeploy).
  * hoja:     nombre exacto, o RegExp para unir varias pestañas (se agrega columna _hoja).
  * columnas: [{col, desc}] documentación para el diccionario; si falta, se listan al leer.
  * claves:   columnas que sirven para cruzar con otras fuentes (equipo, obra, nro_orden).
@@ -31,13 +31,13 @@ const FUENTES = [
     columnas: [{ col: 'clave', desc: '' }, { col: 'valor', desc: '' }, { col: 'desc', desc: '' }], claves: [] },
 
   // ── AUTOVIAS (bacheo) ──
-  { id: 'autovias_produccion', modulo: 'AUTOVIAS', nombre: 'Producción diaria de Autovías', planilla: { prop: 'AUTOVIAS_SHEET_ID' }, hoja: 'PRODUCCION',
+  { id: 'autovias_produccion', modulo: 'AUTOVIAS', nombre: 'Producción diaria de Autovías', planilla: { prop: 'AUTOVIAS_SHEET_ID', id_defecto: '1oXBh5DDSIeCPsNxv9agst84b5KSOTdTpb3vNDIxKOl4' }, hoja: 'PRODUCCION',
     descripcion: 'Una fila por jornada: toneladas colocadas, viajes, combustible en pesos, observaciones.',
     columnas: [{ col: 'FECHA', desc: '' }, { col: 'TONELADAS', desc: 'mezcla colocada, t' }, { col: 'VIAJES', desc: 'viajes de camión' }, { col: 'OBSERVACIONES', desc: '' }, { col: 'CARGADO POR', desc: '' }, { col: 'JORNADA', desc: 'tipo de jornada' }, { col: 'COMBUSTIBLE_ARS', desc: 'gasoil del día en pesos' }], claves: ['FECHA'] },
-  { id: 'autovias_puntas', modulo: 'AUTOVIAS', nombre: 'Juegos de puntas de fresadora', planilla: { prop: 'AUTOVIAS_SHEET_ID' }, hoja: 'PUNTAS',
+  { id: 'autovias_puntas', modulo: 'AUTOVIAS', nombre: 'Juegos de puntas de fresadora', planilla: { prop: 'AUTOVIAS_SHEET_ID', id_defecto: '1oXBh5DDSIeCPsNxv9agst84b5KSOTdTpb3vNDIxKOl4' }, hoja: 'PUNTAS',
     descripcion: 'Cambios de juegos de puntas (consumible de la fresadora). Referencia: 1400 t por juego.',
     columnas: [{ col: 'FECHA', desc: '' }, { col: 'JUEGOS', desc: 'juegos cambiados' }, { col: 'OBSERVACIONES', desc: '' }], claves: ['FECHA'] },
-  { id: 'autovias_equipos', modulo: 'AUTOVIAS', nombre: 'Equipos alquilados en Autovías', planilla: { prop: 'AUTOVIAS_SHEET_ID' }, hoja: 'EQUIPOS',
+  { id: 'autovias_equipos', modulo: 'AUTOVIAS', nombre: 'Equipos alquilados en Autovías', planilla: { prop: 'AUTOVIAS_SHEET_ID', id_defecto: '1oXBh5DDSIeCPsNxv9agst84b5KSOTdTpb3vNDIxKOl4' }, hoja: 'EQUIPOS',
     descripcion: 'Equipos afectados a la obra con su precio mensual de alquiler.',
     columnas: [{ col: 'EQUIPO', desc: 'código o nombre' }, { col: 'PRECIO MES', desc: '' }, { col: 'MONEDA', desc: 'ARS/USD' }, { col: 'CON IVA', desc: '' }, { col: 'OBS', desc: '' }, { col: 'DESDE', desc: 'fecha de inicio' }], claves: ['EQUIPO'] },
   { id: 'autovias_combustible', modulo: 'AUTOVIAS', nombre: 'Entregas de combustible (tanque Leandro Casares)', planilla: { id: '19eyY8MImPM_-Gyzj8QcqA_yR5KDrkuu-1faJUU48N1A' }, hoja: 'ENTREGAS',
@@ -58,15 +58,15 @@ const FUENTES = [
     descripcion: 'Maestro de obras con expediente, estado de cobro, monto y tipo de contrato.', claves: ['Expediente', 'Nombre Obra'] },
 
   // ── TARJAS (flota pesada) ──
-  { id: 'tarjas_equipos', modulo: 'TARJAS', nombre: 'Equipos de la flota (tarja)', planilla: { prop: 'TARJA_SHEET_ID' }, hoja: 'EQUIPOS',
+  { id: 'tarjas_equipos', modulo: 'TARJAS', nombre: 'Equipos de la flota (tarja)', planilla: { prop: 'TARJA_SHEET_ID', id_defecto: '1rO_6uisxlLTzcJepRy5uMBvQpxvvMIwm8d708TwgEMo' }, hoja: 'EQUIPOS',
     descripcion: 'Un equipo por fila: código, descripción, horómetro según última tarja, último operador, fecha de última tarja y posición GPS. "Dónde está el equipo" = su última tarja.', claves: ['codigo'] },
-  { id: 'tarjas_diarias', modulo: 'TARJAS', nombre: 'Tarjas diarias (todos los años)', planilla: { prop: 'TARJA_SHEET_ID' }, hoja: /^TARJAS_\d{4}$/,
+  { id: 'tarjas_diarias', modulo: 'TARJAS', nombre: 'Tarjas diarias (todos los años)', planilla: { prop: 'TARJA_SHEET_ID', id_defecto: '1rO_6uisxlLTzcJepRy5uMBvQpxvvMIwm8d708TwgEMo' }, hoja: /^TARJAS_\d{4}$/,
     descripcion: 'Una tarja por equipo y día: operador, obra, horómetro inicio/fin, horas trabajadas, checklist, combustible y aceites cargados, GPS. Columna _hoja indica el año. Es la fuente para "qué equipos están en tal obra" (últimas tarjas por equipo).', claves: ['equipo', 'obra', 'fecha', 'legajo'] },
-  { id: 'tarjas_pendientes', modulo: 'TARJAS', nombre: 'Novedades pendientes de tarja', planilla: { prop: 'TARJA_SHEET_ID' }, hoja: 'PENDIENTES',
+  { id: 'tarjas_pendientes', modulo: 'TARJAS', nombre: 'Novedades pendientes de tarja', planilla: { prop: 'TARJA_SHEET_ID', id_defecto: '1rO_6uisxlLTzcJepRy5uMBvQpxvvMIwm8d708TwgEMo' }, hoja: 'PENDIENTES',
     descripcion: 'Ítems del checklist marcados mal por el operario, abiertos o cerrados por taller.', claves: ['equipo'] },
-  { id: 'tarjas_abiertas', modulo: 'TARJAS', nombre: 'Tarjas abiertas ahora', planilla: { prop: 'TARJA_SHEET_ID' }, hoja: 'ABIERTAS',
+  { id: 'tarjas_abiertas', modulo: 'TARJAS', nombre: 'Tarjas abiertas ahora', planilla: { prop: 'TARJA_SHEET_ID', id_defecto: '1rO_6uisxlLTzcJepRy5uMBvQpxvvMIwm8d708TwgEMo' }, hoja: 'ABIERTAS',
     descripcion: 'Tarjas iniciadas y todavía no cerradas (equipos trabajando en este momento).', claves: ['equipo'] },
-  { id: 'tarjas_personal', modulo: 'TARJAS', nombre: 'Operadores (nómina de tarja)', planilla: { prop: 'TARJA_SHEET_ID' }, hoja: 'PERSONAL',
+  { id: 'tarjas_personal', modulo: 'TARJAS', nombre: 'Operadores (nómina de tarja)', planilla: { prop: 'TARJA_SHEET_ID', id_defecto: '1rO_6uisxlLTzcJepRy5uMBvQpxvvMIwm8d708TwgEMo' }, hoja: 'PERSONAL',
     descripcion: 'Legajo, nombre y obra de cada operador. Sin datos personales.', soloColumnas: ['legajo', 'nombre', 'apellido', 'obra', 'activo', 'puesto', 'centro'], claves: ['legajo'] },
 
   // ── DASHBOARD (planillas que lee el Dashboard Ejecutivo) ──
@@ -121,9 +121,10 @@ function fuentesDe_(legajo) {
   return FUENTES.filter(f => mods[f.modulo] && f.activa !== false);
 }
 
+/** ID de la planilla: fijo, o Script Property (si existe) con un valor por defecto conocido. */
 function idPlanilla_(fuente) {
   if (fuente.planilla.id) return fuente.planilla.id;
-  return prop_(fuente.planilla.prop, false) || '';
+  return prop_(fuente.planilla.prop, false) || fuente.planilla.id_defecto || '';
 }
 
 function valorCelda_(v) {

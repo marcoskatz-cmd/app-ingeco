@@ -59,13 +59,20 @@ test('leerFuente_ convierte fechas a ISO y usa caché la segunda vez', () => {
   assert.deepEqual(r2.filas, r1.filas);
 });
 
-test('planilla por Property faltante no rompe: fuente queda inactiva', () => {
+test('planilla por Property faltante y sin defecto no rompe: devuelve error_fuente', () => {
   const c = ctxCon([{ legajo: '7', modulo: 'AUTOVIAS' }]);
-  const f = c.fuentesDe_('7').find(x => x.id === 'autovias_produccion');
-  assert.ok(f);
+  const f = Object.assign({}, c.fuentesDe_('7').find(x => x.id === 'autovias_produccion'), { planilla: { prop: 'NO_EXISTE' } });
   const r = c.leerFuente_(f);
   assert.equal(r.error_fuente !== undefined, true);
   assert.deepEqual(plano(r.filas), []);
+});
+
+test('planilla por Property usa el id por defecto y la Property lo pisa', () => {
+  const c = ctxCon([], { DEF: { PRODUCCION: [['FECHA'], ['2026-10-01']] }, OTRA: { PRODUCCION: [['FECHA'], ['2026-10-02'], ['2026-10-03']] } });
+  const f = { id: 'p', modulo: 'AUTOVIAS', planilla: { prop: 'X_ID', id_defecto: 'DEF' }, hoja: 'PRODUCCION' };
+  assert.equal(c.leerFuente_(f).filas.length, 1);
+  c.__props.X_ID = 'OTRA';
+  assert.equal(c.leerFuente_(f).filas.length, 2);
 });
 
 test('diccionarioFuentes_ nombra id, módulo y columnas', () => {
