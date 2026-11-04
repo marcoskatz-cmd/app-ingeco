@@ -185,3 +185,29 @@ Para sumar un sistema nuevo:
    (abierto desde la App en otra pestaña); en `iframe` avisa a la App con `postMessage({tipo:'ingeco_volver'})`.
 4. Gráficos/mapas: colores con `IG.paleta()` / `IG.color('azul')` dentro de la función que dibuja (ingeco.js es defer), con respaldo fijo.
 5. Si tiene service worker: `ingeco.*` red primero con respaldo de caché, y subir la versión del caché.
+
+## IngeBot: cómo sumar una fuente de datos
+
+IngeBot (asistente flotante de la app) responde con los datos de atrás de cada sistema leyendo
+sus planillas directamente desde el backend común, filtrado por los módulos que la persona tiene
+en PERMISOS. Acceso al bot: módulo `BOT` en PERMISOS (se da desde Admin).
+
+Para que el bot vea una tabla nueva:
+1. Agregar una entrada en `FUENTES` (`backend/bot_fuentes.js`): `id` (snake_case), `modulo` (el
+   código que la habilita), `nombre`, `planilla` (`{id}` fijo o `{prop, id_defecto}`), `hoja`
+   (nombre exacto, `null` = primera, o RegExp para unir pestañas), `descripcion` (qué hay y cómo
+   leerla; es lo que Claude lee), `columnas` opcional y `claves` de cruce.
+2. Si la planilla no es de Marcos, compartirla con la cuenta que ejecuta el backend y correr
+   `botDiagnostico()` (abre cada planilla y reporta).
+3. Columnas sensibles: todo encabezado que matchee `VEDADAS_RE` se descarta solo; para filas
+   sensibles usar `filasVedadasRe`; para limitar columnas, `soloColumnas`.
+4. `clasp push -f && clasp deploy -i <deploymentId>`. No hace falta tocar el shell.
+
+Sistemas que no están en planillas (Postgres, etc.) entran como fuente `remota: true` con una
+herramienta propia, como `pedidos_compra` → `botConsultar` en el repo de Pedidos (header
+`X-Bot-Clave`, SQL parametrizado con lista blanca).
+
+Properties: `CLAUDE_API_KEY`, `BOT_CUPO_DIA` (30), `BOT_SIN_TOPE` (legajos separados por coma),
+`COMPRAS_RPC_URL`, `COMPRAS_BOT_CLAVE`, `AUTOVIAS_SHEET_ID` / `TARJA_SHEET_ID` (opcionales, pisan
+el ID por defecto). Setup inicial: `scripts/setup_bot.sh` (el endpoint temporal `setup_bot` con su
+clave se agrega solo en el árbol de trabajo para el push de clasp; nunca se commitea).
