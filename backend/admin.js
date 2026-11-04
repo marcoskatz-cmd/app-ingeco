@@ -226,10 +226,15 @@ function estadisticasBot_(ctx, payload) {
   const dias = Number(payload.dias || 30);
   const desde = Date.now() - dias * 86400000;
   const cs = leer_('CONSULTAS_BOT').filter(c => c.fecha && new Date(c.fecha).getTime() >= desde);
-  const porModulo = {}, tokens = cs.reduce((s, c) => s + Number(c.tokens || 0), 0);
-  cs.forEach(c => { const m = c.modulo_contexto || '(inicio)'; porModulo[m] = (porModulo[m] || 0) + 1; });
+  const porModulo = {}, porFuente = {}, tokens = cs.reduce((s, c) => s + Number(c.tokens || 0), 0);
+  cs.forEach(c => {
+    const m = c.modulo_contexto || '(inicio)'; porModulo[m] = (porModulo[m] || 0) + 1;
+    String(c.fuentes || '').split('|').filter(Boolean).forEach(f => { porFuente[f] = (porFuente[f] || 0) + 1; });
+  });
+  const ms = cs.map(c => Number(c.ms || 0)).filter(Boolean).sort((a, b) => a - b);
   return {
-    ok: true, total: cs.length, tokens, por_modulo: porModulo,
+    ok: true, total: cs.length, tokens, por_modulo: porModulo, por_fuente: porFuente,
+    ms_mediana: ms.length ? ms[Math.floor(ms.length / 2)] : 0,
     mal_valoradas: cs.filter(c => String(c.util).toLowerCase() === 'no').slice(-30).map(c => ({ fecha: c.fecha, legajo: c.legajo, modulo: c.modulo_contexto, pregunta: c.pregunta, respuesta: c.respuesta })),
     ultimas: cs.slice(-50).reverse().map(c => ({ fecha: c.fecha, legajo: c.legajo, modulo: c.modulo_contexto, pregunta: c.pregunta, util: c.util }))
   };

@@ -44,12 +44,22 @@ export function stubs(extra) {
           getLastRow: () => ss[nombre].length,
           getLastColumn: () => Math.max(...ss[nombre].map(f => f.length), 1),
           getDataRange: () => ({ getValues: () => ss[nombre].map(f => f.slice()) }),
-          getRange: (r, c, nr, nc) => ({ getValues: () => ss[nombre].slice(r - 1, r - 1 + nr).map(f => f.slice(c - 1, c - 1 + nc)) })
+          getRange: (r, c, nr, nc) => ({
+            getValues: () => ss[nombre].slice(r - 1, r - 1 + nr).map(f => f.slice(c - 1, c - 1 + nc)),
+            setValues: vs => { vs.forEach((f, i) => { ss[nombre][r - 1 + i] = ss[nombre][r - 1 + i] || []; f.forEach((v, j) => { ss[nombre][r - 1 + i][c - 1 + j] = v; }); }); },
+            setValue: v => { ss[nombre][r - 1] = ss[nombre][r - 1] || []; ss[nombre][r - 1][c - 1] = v; },
+            createTextFinder: () => ({ matchEntireCell: () => ({ findNext: () => null }) })
+          }),
+          appendRow: f => { ss[nombre].push(f.slice()); },
+          setFrozenRows: () => { },
+          deleteRow: r => { ss[nombre].splice(r - 1, 1); }
         });
         return {
           getId: () => id,
           getName: () => 'Planilla ' + id,
           getSheetByName: n => (ss[n] ? hoja(n) : null),
+          insertSheet: n => { ss[n] = []; return hoja(n); },
+          deleteSheet: () => { },
           getSheets: () => Object.keys(ss).map(hoja)
         };
       }

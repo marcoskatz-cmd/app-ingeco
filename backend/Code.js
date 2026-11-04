@@ -6,7 +6,7 @@
  *
  * Acciones públicas (sin token):  login_google, validar_token, notificar (con clave_sistema), vapid, ping
  * Acciones de usuario (token):    perfil, cerrar_sesion, bandeja, marcar_leido, suscribir_push,
- *                                 desuscribir_push, ayuda, valorar_ayuda, saludo_ayuda
+ *                                 desuscribir_push, bot_preguntar, bot_valorar, bot_saludo (alias viejos: ayuda, valorar_ayuda, saludo_ayuda)
  * Acciones ADMIN (token+ADMIN):   admin_usuarios, admin_alta, admin_set_permiso, admin_editar,
  *                                 admin_cerrar_sesiones, admin_baja, admin_ficha, admin_importar, admin_modulos,
  *                                 admin_guardar_modulo, admin_instructivos, admin_guardar_instructivo,
@@ -34,9 +34,13 @@ const USUARIO = {
   marcar_leido: (ctx, p) => marcarLeido_(ctx, p),
   suscribir_push: (ctx, p) => suscribirPush_(ctx, p),
   desuscribir_push: (ctx, p) => desuscribirPush_(ctx, p),
-  ayuda: (ctx, p) => ayuda_(ctx, p),
-  valorar_ayuda: (ctx, p) => valorarAyuda_(ctx, p),
-  saludo_ayuda: (ctx, p) => saludoAyuda_(ctx, p),
+  // IngeBot (bot.js). Los alias viejos quedan hasta que todos los shells en caché se actualicen.
+  bot_preguntar: (ctx, p) => botPreguntar_(ctx, p),
+  bot_valorar: (ctx, p) => botValorar_(ctx, p),
+  bot_saludo: (ctx, p) => botSaludo_(ctx, p),
+  ayuda: (ctx, p) => botPreguntar_(ctx, Object.assign({}, p, { conversacion: p.historial })),
+  valorar_ayuda: (ctx, p) => botValorar_(ctx, p),
+  saludo_ayuda: (ctx, p) => botSaludo_(ctx, p),
   instructivos_mios: (ctx, p) => instructivosMios_(ctx, p),
   // Módulo AVISOS (comunicados de personas)
   com_catalogo: ctx => catalogoDestinatarios_(ctx),
@@ -73,7 +77,7 @@ const ADMIN = {
   admin_diagnostico: ctx => { requiereAdmin_(ctx); return Object.assign({ ok: true }, diagnostico_()); }
 };
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 
 // Tiempos por etapa del pedido (se devuelven en _perf para diagnosticar lentitud).
 const _perf = { t0: Date.now(), marcas: [] };
@@ -169,6 +173,7 @@ function setup() {
       { codigo: 'PAVIMAX', nombre: 'PAVIMAX', descripcion_corta: 'Pedidos, entregas y stock de bolsas y emulsión', url: 'https://pavimax.ingecosa.com.ar/cargar.html', tipo: 'iframe', icono: '🧱', orden: 6, activo: 'sí' },
       { codigo: 'PAVIMAX_OP', nombre: 'PAVIMAX operario', descripcion_corta: 'Entregas y producción en planta', url: 'https://pavimax.ingecosa.com.ar/', tipo: 'iframe', icono: '🏭', orden: 7, activo: 'sí' },
       { codigo: 'AVISOS', nombre: 'Enviar avisos', descripcion_corta: 'Comunicados a áreas, obras o personas', url: '#avisos', tipo: 'interno', icono: '📣', orden: 0, activo: 'sí' },
+      { codigo: 'BOT', nombre: 'IngeBot', descripcion_corta: 'Asistente que responde con los datos de tus sistemas', url: '', tipo: 'interno', icono: '🤖', orden: 98, activo: 'sí' },
       { codigo: 'ADMIN', nombre: 'Administración de la app', descripcion_corta: 'Usuarios, permisos y avisos', url: '#admin', tipo: 'interno', icono: '⚙️', orden: 99, activo: 'sí' }
     ]);
   }
@@ -265,6 +270,21 @@ function migrarV2() {
   });
   instalarTriggers();
   return { columnas_agregadas: agregadas, diagnostico: diagnostico_() };
+}
+
+/**
+ * Migración v3 (4-nov-2026): IngeBot. Idempotente. Crea el módulo BOT (interno, sin URL: no se muestra
+ * como tarjeta, solo habilita el asistente) y se lo da a los legajos ADMIN. Agrega columnas nuevas de CONSULTAS_BOT.
+ */
+function migrarV3() {
+  const agregadas = asegurarColumnas_();
+  if (!leer_('MODULOS').some(m => String(m.codigo).toUpperCase() === 'BOT')) {
+    agregar_('MODULOS', { codigo: 'BOT', nombre: 'IngeBot', descripcion_corta: 'Asistente que responde con los datos de tus sistemas', url: '', tipo: 'interno', icono: '🤖', orden: 98, activo: 'sí' });
+  }
+  legajosAdmin_().forEach(l => {
+    if (!rolEn_(l, 'BOT')) agregar_('PERMISOS', { legajo: l, modulo: 'BOT', rol: 'USUARIO', otorgado_por: 'migrarV3', fecha: ahora_() });
+  });
+  return { columnas_agregadas: agregadas, diagnostico: diagnostico_(), fuentes: botDiagnostico() };
 }
 
 /** Prueba rápida de push a un legajo (correr desde el editor). */

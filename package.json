@@ -4,6 +4,6 @@
   "description": "App INGECO: shell PWA + backend Apps Script. Tests de las funciones puras del backend en Node.",
   "scripts": {
     "test": "node --test \"tests/*.test.mjs\"",
-    "check": "node --check backend/*.js"
+    "check": "for f in backend/*.js; do node --check \"$f\" || exit 1; done"
   }
 }

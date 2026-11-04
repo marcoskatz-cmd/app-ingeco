@@ -99,7 +99,8 @@ function sesionDe_(token) {
 }
 
 function perfil_(u) {
-  return { legajo: u.legajo, nombre_visible: u.nombre_visible, email: u.email, sector: u.sector, modulos: modulosDe_(u.legajo), es_admin: tienePermiso_(u.legajo, 'ADMIN') };
+  const bot = tienePermiso_(u.legajo, 'BOT') ? Object.assign({ habilitado: true }, cupoDe_(u.legajo)) : { habilitado: false };
+  return { legajo: u.legajo, nombre_visible: u.nombre_visible, email: u.email, sector: u.sector, modulos: modulosDe_(u.legajo), es_admin: tienePermiso_(u.legajo, 'ADMIN'), bot };
 }
 
 /** Contrato para módulos: POST {accion:"validar_token", token, modulo?} */
