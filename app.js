@@ -158,13 +158,15 @@ async function procesarRetornoGoogle() {
 
 
 function guardarPerfil(r) {
-  S.perfil = { legajo: r.legajo, nombre_visible: r.nombre_visible, sector: r.sector, modulos: r.modulos || [], es_admin: !!r.es_admin };
+  S.perfil = { legajo: r.legajo, nombre_visible: r.nombre_visible, sector: r.sector, modulos: r.modulos || [], es_admin: !!r.es_admin, bot: r.bot || { habilitado: false } };
   localStorage.setItem('ingeco_perfil', JSON.stringify(S.perfil));
+  if (window.IngeBot) IngeBot.iniciar(S.perfil);
 }
 function cerrarSesionLocal() {
   S.token = ''; S.perfil = null; S.avisos = [];
   localStorage.removeItem('ingeco_token'); localStorage.removeItem('ingeco_perfil');
   clearInterval(S.timer);
+  if (window.IngeBot) IngeBot.apagar();
 }
 $('avatar').onclick = () => $('btn-salir').click();
 $('btn-salir').onclick = async () => {
@@ -291,7 +293,7 @@ function verInicio() {
     pend.innerHTML = `<svg class="i" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16zM13 7l4 4"/></svg><div><b>${r.pendientes.length} aviso${r.pendientes.length > 1 ? 's' : ''} para aprobar</b><br><small>${esc(r.pendientes[0].emisor)}: ${esc(r.pendientes[0].titulo)}</small></div><span style="margin-left:auto;font-size:1.3rem;opacity:.6">›</span>`;
     pend.onclick = () => irA('#avisos/' + encodeURIComponent(r.pendientes[0].id));
   });
-  const mods = p.modulos.filter(m => m.codigo !== 'ADMIN' && m.codigo !== 'AVISOS');
+  const mods = p.modulos.filter(m => m.codigo !== 'ADMIN' && m.codigo !== 'AVISOS' && m.codigo !== 'BOT');
   const grupos = [MARCAS[2], MARCAS[0], MARCAS[1]].map(mk => ({ mk, mods: mods.filter(m => marcaDe(m) === mk) })).filter(g => g.mods.length);
   $('tarjetas').innerHTML = grupos.map(g => `
     <div class="marca ${g.mk.id}"><img src="${g.mk.logo}" alt="${esc(g.mk.nombre)}"></div>
@@ -388,7 +390,7 @@ $('btn-consultar').onclick = () => {
 window.addEventListener('message', e => {
   const d = e.data || {};
   if (d.tipo === 'ingeco_pedir_ticket' && S.moduloActual) ticketPara(S.moduloActual.codigo).then(tk => { if (tk) e.source.postMessage({ tipo: 'ingeco_ticket', ticket: tk, modulo: S.moduloActual.codigo }, '*'); });
-  if (d.tipo === 'ingeco_ayuda') irA('#ayuda/' + encodeURIComponent(S.moduloActual ? S.moduloActual.codigo : ''));
+  if (d.tipo === 'ingeco_ayuda') { if (window.IngeBot && S.perfil && S.perfil.bot && S.perfil.bot.habilitado) IngeBot.abrir(S.moduloActual ? S.moduloActual.codigo : ''); else irA('#ayuda/' + encodeURIComponent(S.moduloActual ? S.moduloActual.codigo : '')); }
   if (d.tipo === 'ingeco_toast') toast(String(d.texto || ''), d.clase || '');
   if (d.tipo === 'ingeco_volver') irA('#inicio');
 });
@@ -472,8 +474,6 @@ $('btn-todo-leido').onclick = async () => {
 };
 
 // ───────────────────────── Ayuda (bot) ─────────────────────────
-let ayudaCtx = '';
-let ayudaTab = 'guias';
 function formatoGuia(t) {
   // Texto plano con `código` → <code>, y URLs → links.
   return esc(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
@@ -510,50 +510,15 @@ async function verGuias(moduloCtx) {
     || '<p class="vacio"><span class="big">📘</span>Todavía no hay guías cargadas para tus sistemas.</p>');
   if (location.hash.indexOf('instalar') >= 0) { const d = $('guia-instalar'); if (d) { d.open = true; d.scrollIntoView(); } }
 }
-function pintarTabAyuda() {
-  document.querySelectorAll('[data-ayuda]').forEach(b => b.classList.toggle('activa', b.dataset.ayuda === ayudaTab));
-  $('guias').hidden = ayudaTab !== 'guias';
-  $('chat').hidden = ayudaTab !== 'chat'; $('chat-form').hidden = ayudaTab !== 'chat';
-  if (ayudaTab === 'chat') setTimeout(() => $('chat-input').focus(), 100);
-}
-document.querySelectorAll('[data-ayuda]').forEach(b => b.onclick = () => { ayudaTab = b.dataset.ayuda; pintarTabAyuda(); });
 async function verAyuda(moduloCtx) {
   mostrarVista('ayuda');
-  pintarTabAyuda();
+  const hab = !!(S.perfil && S.perfil.bot && S.perfil.bot.habilitado);
+  $('btn-preguntar-ingebot').hidden = !hab;
+  $('btn-preguntar-ingebot').onclick = () => { if (window.IngeBot) IngeBot.abrir(moduloCtx || ''); };
+  $('btn-mostrar-ingebot').hidden = !(hab && localStorage.getItem('ingebot_oculto'));
+  $('btn-mostrar-ingebot').onclick = () => { if (window.IngeBot) IngeBot.mostrar(); $('btn-mostrar-ingebot').hidden = true; };
   verGuias(moduloCtx);
-  const nuevoCtx = moduloCtx || '';
-  if (nuevoCtx !== ayudaCtx || !S.chat.length) {
-    ayudaCtx = nuevoCtx; S.chat = [];
-    const r = await api('saludo_ayuda', { modulo_contexto: ayudaCtx }, { silencioso: true });
-    S.chat.push({ rol: 'bot', texto: r.ok ? r.texto : '¿En qué te ayudo?' });
-    if (r.wa_admin) { $('chat-wa').href = r.wa_admin; $('chat-wa').hidden = false; }
-  }
-  pintarChat();
 }
-function pintarChat() {
-  $('chat').innerHTML = S.chat.map((m, i) => `
-    <div class="burbuja ${m.rol} ${m.error ? 'error' : ''}">${esc(m.texto)}${m.rol === 'bot' && m.fila ? `
-      <div class="valorar"><button data-v="1" data-i="${i}" class="${m.util === true ? 'elegido' : ''}" aria-label="Me sirvió">👍</button><button data-v="0" data-i="${i}" class="${m.util === false ? 'elegido' : ''}" aria-label="No me sirvió">👎</button></div>` : ''}</div>`).join('') +
-    (S.chatEsperando ? '<div class="burbuja bot escribiendo">Pensando…</div>' : '');
-  $('chat').scrollTop = $('chat').scrollHeight;
-  $('chat').querySelectorAll('.valorar button').forEach(b => b.onclick = async () => {
-    const m = S.chat[+b.dataset.i]; m.util = b.dataset.v === '1';
-    pintarChat(); await api('valorar_ayuda', { fila: m.fila, util: m.util }, { silencioso: true });
-  });
-}
-$('chat-form').onsubmit = async e => {
-  e.preventDefault();
-  const q = $('chat-input').value.trim(); if (!q || S.chatEsperando) return;
-  $('chat-input').value = '';
-  S.chat.push({ rol: 'usuario', texto: q }); S.chatEsperando = true; pintarChat();
-  const historial = S.chat.slice(0, -1).filter(m => !m.error).slice(-8).map(m => ({ rol: m.rol, texto: m.texto }));
-  const r = await api('ayuda', { modulo_contexto: ayudaCtx, pregunta: q, historial }, { silencioso: true });
-  S.chatEsperando = false;
-  if (r.ok) S.chat.push({ rol: 'bot', texto: r.respuesta, fila: r.fila });
-  else S.chat.push({ rol: 'bot', texto: r.error || 'No pude responder.', error: true });
-  if (r.wa_admin) { $('chat-wa').href = r.wa_admin; $('chat-wa').hidden = false; }
-  pintarChat();
-};
 
 // ───────────────────────── Push ─────────────────────────
 function b64aUint8(b64) {
@@ -821,7 +786,7 @@ async function pintarModulosAdmin() {
   $('admin-modulos').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => formModulo(r.modulos.find(m => m.codigo === b.dataset.edit)));
 }
 $('btn-nuevo-modulo').onclick = () => formModulo({});
-$('btn-guia-sistemas').onclick = () => { ayudaTab = 'guias'; irA('#ayuda/ADMIN'); };
+$('btn-guia-sistemas').onclick = () => irA('#ayuda/ADMIN');
 function formModulo(m) {
   const activo = m.activo === undefined ? true : String(m.activo).toLowerCase().startsWith('s');
   modal(`<h3>${m.codigo ? 'Editar módulo' : 'Nuevo módulo'}</h3><form id="f-mod" class="form">
