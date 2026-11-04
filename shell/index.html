@@ -83,14 +83,11 @@
 
     <!-- AYUDA -->
     <section id="v-ayuda" class="vista vista-chat" hidden>
-      <div class="tabs" style="flex:none"><button data-ayuda="guias" class="activa"><svg class="i" style="width:18px;height:18px" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2zM4 5v16M8 7h8"/></svg>Guías</button><button data-ayuda="chat"><svg class="i" style="width:18px;height:18px" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.2L4 21l1.8-5.4A8 8 0 1 1 21 12z"/></svg>Preguntar</button></div>
+      <div class="fila-acciones" style="flex:none;gap:8px;flex-wrap:wrap">
+        <button id="btn-preguntar-ingebot" class="secundario" type="button" hidden><svg class="i" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.2L4 21l1.8-5.4A8 8 0 1 1 21 12z"/></svg>Preguntarle a IngeBot</button>
+        <button id="btn-mostrar-ingebot" class="chico" type="button" hidden>Mostrar IngeBot</button>
+      </div>
       <div id="guias" class="guias"></div>
-      <div id="chat" class="chat" hidden></div>
-      <form id="chat-form" class="chat-form" hidden>
-        <input id="chat-input" type="text" placeholder="Escribí tu pregunta…" autocomplete="off" enterkeyhint="send">
-        <button type="submit" class="primario" aria-label="Enviar"><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
-      </form>
-      <a id="chat-wa" class="enlace" href="#" target="_blank" rel="noopener" hidden>Hablar con Marcos por WhatsApp</a>
     </section>
 
     <!-- AVISOS (comunicados) -->
@@ -196,6 +193,9 @@
   </nav>
 </div>
 
+<!-- ── IngeBot (asistente flotante; lo arma ingebot.js) ── -->
+<div id="ingebot" hidden></div>
+
 <!-- ── Modal genérico ── -->
 <div id="modal" class="modal" hidden>
   <div class="modal-caja" role="dialog" aria-modal="true">
@@ -208,6 +208,7 @@
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="ingeco.js?v=1"></script>
-<script src="app.js?v=25"></script>
+<script src="app.js?v=26"></script>
+<script src="ingebot.js?v=1"></script>
 </body>
 </html>
