@@ -154,7 +154,7 @@
       }
     };
     fab.addEventListener('pointerup', soltar);
-    fab.addEventListener('pointercancel', soltar);
+    fab.addEventListener('pointercancel', () => { clearTimeout(timerLargo); origen = null; arrastrando = false; fab.classList.remove('ib-arrastrando'); aplicarPos(); });
     fab.addEventListener('contextmenu', e => e.preventDefault());
   }
 
@@ -248,7 +248,7 @@
     if (!iniciado) return;
     if (E.fab.hidden) mostrar();
     esconderGlobo();
-    ctxModulo = moduloCtx || (window.S && S.moduloActual && S.moduloActual.codigo) || '';
+    ctxModulo = moduloCtx || (typeof S !== 'undefined' && S.moduloActual && S.moduloActual.codigo) || '';
     abierto = true;
     E.panel.hidden = false; E.fab.classList.add('ib-abierto');
     E.sub.textContent = ctxModulo ? 'sobre ' + ctxModulo : '';

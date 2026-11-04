@@ -146,3 +146,9 @@ test('system prompt: estable trae diccionario completo; variable solo las fuente
   assert.doesNotMatch(s.variable, /tarjas_diarias/);
   assert.match(s.variable, /Ana Pérez/);
 });
+
+test('alias viejo "ayuda" devuelve también "respuesta" para el shell en caché', () => {
+  const c = contexto(ctxCon(BOT_OK, [], hojaAsf), [textoFinal('ok viejo')]);
+  const r = c.botPreguntar_(ctxUsuario, { pregunta: 'x', historial: [] });
+  assert.equal(r.respuesta, 'ok viejo');
+});

@@ -13,7 +13,7 @@
  */
 
 // Encabezados que nunca llegan a Claude, en ninguna fuente.
-const VEDADAS_RE = /sueldo|haber|jornal|remuner|liquidac|cuil|dni|\bpin\b|hash|celular|tel[eé]fono|password|clave/i;
+const VEDADAS_RE = /sueldo|haber|jornal|remuner|liquidac|cuil|dni|\bpin\b|hash|celular|tel[eé]fono|password|clave[_ ]?api|secret|token/i;
 const SINONIMOS_MODULO = { TARJA: 'TARJAS', TARJAS: 'TARJA' };
 const FUENTE_CACHE_SEG = 600;
 const FUENTE_TROZO = 90 * 1024;
@@ -156,7 +156,7 @@ function leerHoja_(sh, fuente, multi) {
     const o = {};
     enc.forEach((h, j) => { if (permitidas[j]) o[h] = valorCelda_(v[j]); });
     if (fuente.filasVedadasRe && Object.keys(o).some(k => fuente.filasVedadasRe.test(String(o[k])))) continue;
-    if (fuente.soloClaves && fuente.soloClaves.indexOf(String(o[columnas[0]])) < 0) continue;
+    if (fuente.soloClaves && fuente.soloClaves.indexOf(String(o[fuente.colClave || 'clave'])) < 0) continue;
     if (multi) o._hoja = sh.getName();
     filas.push(o);
   }
@@ -180,6 +180,36 @@ function cacheGuardar_(k, obj) {
   let n = 0;
   for (let i = 0; i < s.length; i += FUENTE_TROZO) trozos[k + ':' + (n++)] = s.slice(i, i + FUENTE_TROZO);
   try { cache_().putAll(trozos, FUENTE_CACHE_SEG); cache_().put(k, String(n), FUENTE_CACHE_SEG); } catch (e) { }
+}
+
+/** Solo encabezados y cantidad de filas (sin leer los datos): para listar_fuentes. */
+function resumenFuente_(fuente) {
+  const id = idPlanilla_(fuente);
+  if (!id) return { columnas: [], filas: 0, error_fuente: 'La fuente ' + fuente.id + ' no está configurada' };
+  const k = 'resumen:' + fuente.id + ':' + id;
+  const c = cache_().get(k);
+  if (c) { try { return JSON.parse(c); } catch (e) { } }
+  let ss;
+  try { ss = SpreadsheetApp.openById(id); }
+  catch (e) { return { columnas: [], filas: 0, error_fuente: 'No se pudo abrir la planilla de ' + fuente.id }; }
+  const hojas = hojasDe_(ss, fuente);
+  if (!hojas.length) return { columnas: [], filas: 0, error_fuente: 'No existe la hoja ' + fuente.hoja + ' en ' + fuente.id };
+  const columnas = [];
+  let filas = 0;
+  hojas.forEach(sh => {
+    const n = sh.getLastRow(), ancho = Math.max(sh.getLastColumn(), 1);
+    if (n < 1) return;
+    sh.getRange(1, 1, 1, ancho).getValues()[0].map(h => String(h).trim()).forEach(h => {
+      if (!h || esVedada_(h)) return;
+      if (fuente.soloColumnas && fuente.soloColumnas.map(x => x.toLowerCase()).indexOf(h.toLowerCase()) < 0) return;
+      if (columnas.indexOf(h) < 0) columnas.push(h);
+    });
+    filas += Math.max(0, n - 1);
+  });
+  if (hojas.length > 1 || esRegExp_(fuente.hoja)) columnas.push('_hoja');
+  const out = { columnas, filas, hojas: hojas.map(s => s.getName()) };
+  try { cache_().put(k, JSON.stringify(out), FUENTE_CACHE_SEG); } catch (e) { }
+  return out;
 }
 
 /** Lee una fuente completa: {columnas, filas}. Cacheada 10 min. Si la planilla no se puede abrir, {error_fuente, filas:[]}. */

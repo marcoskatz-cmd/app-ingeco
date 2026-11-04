@@ -122,8 +122,14 @@ function fuenteHabilitada_(legajo, id) {
 }
 
 function registroFuente_(f, datos) {
-  return { modulo: f.modulo, tabla: f.remota ? 'ordenes' : (esRegExp_(f.hoja) ? String(f.hoja) : (f.hoja || 'principal')), fuente: f.id, filas: datos ? datos.filas.length : 0 };
+  let tabla = f.remota ? 'ordenes' : (f.hoja || 'principal');
+  if (!f.remota && esRegExp_(f.hoja)) {
+    const hojas = []; ((datos && datos.filas) || []).forEach(r => { if (r._hoja && hojas.indexOf(r._hoja) < 0) hojas.push(r._hoja); });
+    tabla = hojas.length ? hojas.sort().slice(-1)[0] + (hojas.length > 1 ? ' (+' + (hojas.length - 1) + ')' : '') : f.nombre;
+  }
+  return { modulo: f.modulo, tabla, fuente: f.id, filas: datos ? datos.filas.length : 0 };
 }
+function vencido_(opts) { return !!(opts && opts.deadline && Date.now() > opts.deadline); }
 
 function proyectar_(filas, columnas) {
   if (!columnas || !columnas.length) return filas;
@@ -132,13 +138,16 @@ function proyectar_(filas, columnas) {
 
 // ── Ejecutores ──
 
-function toolListarFuentes_(legajo) {
-  const fuentes = fuentesDe_(legajo).map(f => {
-    if (f.remota) return { id: f.id, modulo: f.modulo, nombre: f.nombre, remota: true, tablas: f.tablas, descripcion: f.descripcion };
-    const d = leerFuente_(f);
-    return { id: f.id, modulo: f.modulo, nombre: f.nombre, columnas: d.columnas, filas: d.filas.length, claves: f.claves, descripcion: f.descripcion, error: d.error_fuente };
+function toolListarFuentes_(legajo, input, opts) {
+  const fuentes = [];
+  let parcial = false;
+  fuentesDe_(legajo).forEach(f => {
+    if (f.remota) { fuentes.push({ id: f.id, modulo: f.modulo, nombre: f.nombre, remota: true, tablas: f.tablas, descripcion: f.descripcion }); return; }
+    if (vencido_(opts)) { parcial = true; fuentes.push({ id: f.id, modulo: f.modulo, nombre: f.nombre, descripcion: f.descripcion, claves: f.claves }); return; }
+    const d = resumenFuente_(f);
+    fuentes.push({ id: f.id, modulo: f.modulo, nombre: f.nombre, columnas: d.columnas, filas: d.filas, claves: f.claves, descripcion: f.descripcion, error: d.error_fuente });
   });
-  return { resultado: { fuentes }, fuentes: [] };
+  return { resultado: { fuentes, parcial }, fuentes: [] };
 }
 
 function toolLeerTabla_(legajo, input) {
@@ -169,13 +178,15 @@ function toolResumirTabla_(legajo, input) {
   return { resultado: { fuente: h.fuente.id, filas_consideradas: filas.length, grupos: grupos.slice(0, TOOL_LIMITE_MAX), truncado: grupos.length > TOOL_LIMITE_MAX }, fuentes: [registroFuente_(h.fuente, d)] };
 }
 
-function toolBuscarTexto_(legajo, input) {
+function toolBuscarTexto_(legajo, input, opts) {
   const texto = String(input.texto || '').trim();
   if (texto.length < 2) return { resultado: { error: 'Texto demasiado corto' }, is_error: true, fuentes: [] };
   let fuentes = fuentesDe_(legajo).filter(f => !f.remota);
   if (input.fuentes && input.fuentes.length) fuentes = fuentes.filter(f => input.fuentes.indexOf(f.id) >= 0);
   const coincidencias = [], usadas = [];
+  let parcial = false;
   fuentes.forEach(f => {
+    if (vencido_(opts)) { parcial = true; return; }
     const d = leerFuente_(f);
     if (d.error_fuente) return;
     const hit = buscarTexto_(d.filas, texto);
@@ -183,14 +194,16 @@ function toolBuscarTexto_(legajo, input) {
     coincidencias.push({ fuente: f.id, modulo: f.modulo, total: hit.length, filas: hit.slice(-TOOL_BUSCAR_POR_FUENTE) });
     usadas.push(registroFuente_(f, d));
   });
-  return { resultado: { texto, coincidencias }, fuentes: usadas };
+  return { resultado: { texto, coincidencias, parcial }, fuentes: usadas };
 }
 
-function toolFichaEquipo_(legajo, input) {
+function toolFichaEquipo_(legajo, input, opts) {
   const cod = normEquipo_(input.codigo);
   if (!cod) return { resultado: { error: 'Falta el código' }, is_error: true, fuentes: [] };
   const porFuente = [], usadas = [];
+  let parcial = false;
   fuentesDe_(legajo).filter(f => !f.remota && (f.claves || []).some(k => /equipo|codigo|vehiculo/i.test(k))).forEach(f => {
+    if (vencido_(opts)) { parcial = true; return; }
     const d = leerFuente_(f);
     if (d.error_fuente) return;
     const cols = d.columnas.filter(c => /equipo|codigo|vehiculo|maquina|interno|patente/i.test(c));
@@ -200,7 +213,7 @@ function toolFichaEquipo_(legajo, input) {
     porFuente.push({ fuente: f.id, modulo: f.modulo, total: hit.length, filas: hit.slice(-TOOL_FICHA_POR_FUENTE) });
     usadas.push(registroFuente_(f, d));
   });
-  return { resultado: { codigo: input.codigo, por_fuente: porFuente }, fuentes: usadas };
+  return { resultado: { codigo: input.codigo, por_fuente: porFuente, parcial }, fuentes: usadas };
 }
 
 function toolPedidosCompra_(legajo, input) {
@@ -215,7 +228,9 @@ function toolPedidosCompra_(legajo, input) {
 function consultarCompras_(input) {
   const url = prop_('COMPRAS_RPC_URL', false), clave = prop_('COMPRAS_BOT_CLAVE', false);
   if (!url || !clave) return { error: 'El puente a Pedidos de compra no está configurado (COMPRAS_RPC_URL / COMPRAS_BOT_CLAVE).' };
-  const consulta = { tabla: input.tabla, filtros: input.filtros || [], agrupar_por: input.agrupar_por || null, metrica: input.metrica || null, limite: limite_(input.limite) };
+  const agrupar = Array.isArray(input.agrupar_por) && input.agrupar_por.length ? input.agrupar_por : null;
+  const metrica = (agrupar || (input.metrica && input.metrica.fn && input.metrica.fn !== 'count')) ? (input.metrica || null) : null;
+  const consulta = { tabla: input.tabla, filtros: input.filtros || [], agrupar_por: agrupar, metrica, limite: limite_(input.limite) };
   const k = 'compras:' + Utilities.base64Encode(JSON.stringify(consulta)).slice(0, 200);
   const c = cache_().get(k);
   if (c) { try { return JSON.parse(c); } catch (e) { } }
@@ -231,12 +246,12 @@ function consultarCompras_(input) {
   return out;
 }
 
-/** Punto de entrada del loop. Devuelve {resultado, is_error, fuentes:[{modulo,tabla,fuente,filas}]}. */
-function ejecutarTool_(legajo, name, input) {
+/** Punto de entrada del loop. opts.deadline (ms epoch) corta los recorridos de varias fuentes. Devuelve {resultado, is_error, fuentes:[...]}. */
+function ejecutarTool_(legajo, name, input, opts) {
   const EJ = { listar_fuentes: toolListarFuentes_, leer_tabla: toolLeerTabla_, resumir_tabla: toolResumirTabla_, buscar_texto: toolBuscarTexto_, ficha_equipo: toolFichaEquipo_, pedidos_compra: toolPedidosCompra_ };
   if (!EJ[name]) return { resultado: { error: 'Herramienta desconocida: ' + name }, is_error: true, fuentes: [] };
   try {
-    const r = EJ[name](legajo, input || {});
+    const r = EJ[name](legajo, input || {}, opts || {});
     return { resultado: r.resultado, is_error: !!r.is_error, fuentes: r.fuentes || [] };
   } catch (e) {
     console.warn('tool ' + name + ': ' + e + '\n' + (e.stack || ''));

@@ -98,3 +98,30 @@ test('pedidos_compra sin permiso COMPRAS es error y no llama a la red', () => {
   assert.equal(r.is_error, true);
   assert.equal(llamadas, 0);
 });
+
+test('listar_fuentes no lee los datos de las planillas', () => {
+  const c = ctxCon([{ legajo: '7', modulo: 'ASFALTO' }], { [ASF]: { DIARIO: filasAsfalto(2), SALIDAS: [['FECHA', 'DESTINO', 'MEZCLA_T']], CONFIG: [['clave', 'valor', 'desc']] } });
+  let lecturas = 0;
+  const abierto = c.SpreadsheetApp.openById;
+  c.SpreadsheetApp.openById = id => { const ss = abierto(id); const orig = ss.getSheetByName; ss.getSheetByName = n => { const sh = orig(n); if (sh) { const g = sh.getDataRange; sh.getDataRange = () => { lecturas++; return g(); }; } return sh; }; return ss; };
+  const r = c.ejecutarTool_('7', 'listar_fuentes', {});
+  assert.equal(lecturas, 0, 'getDataRange no debe llamarse');
+  const d = r.resultado.fuentes.find(f => f.id === 'asfalto_diario');
+  assert.deepEqual(plano(d.columnas), ['FECHA', 'STOCK_T', 'RECIBIDO_T']);
+  assert.equal(d.filas, 2);
+});
+
+test('buscar_texto y ficha_equipo cortan por deadline y marcan parcial', () => {
+  const c = ctxCon([{ legajo: '7', modulo: 'ASFALTO' }], { [ASF]: { DIARIO: [['FECHA', 'OBS'], ['2026-10-01', 'Margaritas']], SALIDAS: [['FECHA', 'DESTINO'], ['2026-10-01', 'Margaritas']], CONFIG: [['clave', 'valor', 'desc']] } });
+  const r = c.ejecutarTool_('7', 'buscar_texto', { texto: 'margaritas', fuentes: null }, { deadline: Date.now() - 1 });
+  assert.equal(r.resultado.parcial, true);
+  assert.ok(r.resultado.coincidencias.length < 2);
+});
+
+test('pedidos_compra con agrupar_por [] se trata como listado', () => {
+  const c = ctxCon([{ legajo: '7', modulo: 'COMPRAS' }], {}, { COMPRAS_RPC_URL: 'https://x/api/rpc', COMPRAS_BOT_CLAVE: 'k' });
+  let enviado = null;
+  c.UrlFetchApp = { fetch: (u, o) => { enviado = JSON.parse(o.payload); return { getResponseCode: () => 200, getContentText: () => JSON.stringify({ ok: true, columnas: ['a'], filas: [{ a: 1 }], total: 1 }) }; } };
+  c.ejecutarTool_('7', 'pedidos_compra', { tabla: 'ordenes', filtros: null, agrupar_por: [], metrica: null, limite: null });
+  assert.equal(enviado.args[0].agrupar_por, null);
+});

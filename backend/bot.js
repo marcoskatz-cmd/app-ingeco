@@ -174,7 +174,8 @@ function botPreguntar_(ctx, payload) {
 
   const cupo = cupoDe_(u.legajo);
   if (!cupo.sin_tope && cupo.usadas >= cupo.max) {
-    return { ok: true, limite: true, texto: 'Llegaste al máximo de ' + cupo.max + ' preguntas por hoy. Mañana se renueva.', cupo: { usadas: cupo.usadas, max: cupo.max }, fuentes: [] };
+    const t = 'Llegaste al máximo de ' + cupo.max + ' preguntas por hoy. Mañana se renueva.';
+    return { ok: true, limite: true, texto: t, respuesta: t, cupo: { usadas: cupo.usadas, max: cupo.max }, fuentes: [] };
   }
 
   const fuentes = fuentesDe_(u.legajo);
@@ -205,7 +206,7 @@ function botPreguntar_(ctx, payload) {
       if (json.stop_reason === 'tool_use' && toolUses.length) {
         if (i === BOT_MAX_VUELTAS) { corte = 'vueltas'; break; }
         const results = toolUses.map(tu => {
-          const r = ejecutarTool_(u.legajo, tu.name, tu.input);
+          const r = ejecutarTool_(u.legajo, tu.name, tu.input, { deadline: t0 + BOT_TIEMPO_MAX_MS });
           (r.fuentes || []).forEach(f => { usadasFuentes[f.fuente] = f; });
           return { type: 'tool_result', tool_use_id: tu.id, content: JSON.stringify(r.resultado), is_error: !!r.is_error };
         });
@@ -231,7 +232,8 @@ function botPreguntar_(ctx, payload) {
     pregunta, respuesta: texto.slice(0, 500), tokens, util: '',
     fuentes: fuentesLista.map(f => f.fuente).join('|'), vueltas, ms: Date.now() - t0
   });
-  return { ok: true, texto, fuentes: fuentesLista, cupo: { usadas: cupo.usadas + 1, max: cupo.max, sin_tope: cupo.sin_tope }, fila, wa_admin: waAdmin_() };
+  // `respuesta` duplica `texto` para los shells viejos en caché (alias ayuda).
+  return { ok: true, texto, respuesta: texto, fuentes: fuentesLista, cupo: { usadas: cupo.usadas + 1, max: cupo.max, sin_tope: cupo.sin_tope }, fila, wa_admin: waAdmin_() };
 }
 
 /** POST {accion:'bot_valorar', token, payload:{fila, util:true|false}} */

@@ -70,7 +70,8 @@ export function stubs(extra) {
         const s = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
         return fmt.indexOf('HH') >= 0 ? s + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) : s;
       },
-      getUuid: () => 'uuid-' + Math.random().toString(36).slice(2)
+      getUuid: () => 'uuid-' + Math.random().toString(36).slice(2),
+      base64Encode: s => Buffer.from(String(s), 'utf8').toString('base64')
     },
     LockService: { getScriptLock: () => ({ waitLock: () => { }, releaseLock: () => { } }) }
   };

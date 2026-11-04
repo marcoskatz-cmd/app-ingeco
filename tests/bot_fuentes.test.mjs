@@ -83,3 +83,12 @@ test('diccionarioFuentes_ nombra id, módulo y columnas', () => {
   assert.match(d, /ASFALTO/);
   assert.match(d, /STOCK_T/);
 });
+
+test('asfalto_config devuelve las claves útiles (la columna "clave" no es vedada)', () => {
+  const c = ctxCon([], { CFG: { CONFIG: [['clave', 'valor', 'desc'], ['PIN', '1234', 'pin'], ['STOCK_MINIMO', 40, 't'], ['PORC_TEORICO', 5.2, '%']] } });
+  const f = Object.assign({}, c.fuentePorId_('asfalto_config'), { planilla: { id: 'CFG' } });
+  const r = c.leerFuente_(f);
+  assert.deepEqual(plano(r.filas.map(x => x.clave)).sort(), ['PORC_TEORICO', 'STOCK_MINIMO']);
+  assert.equal(c.esVedada_('CLAVE OBRA'), false);
+  assert.equal(c.esVedada_('clave_api'), true);
+});
