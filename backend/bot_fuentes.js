@@ -99,6 +99,30 @@ const FUENTES = [
   { id: 'dash_comb_herrero', modulo: 'DASHBOARD', nombre: 'Combustible estación Carlos Herrero (Quilmes)', planilla: { id: '1GB_oiL40fEXHXzhmor3ztnnriiikX1xp3fG-F5Uuw5E' }, hoja: 'ENTREGAS',
     descripcion: 'Cargas de combustible de camionetas y bidones en Quilmes.', claves: ['fecha', 'vehiculo'] },
 
+  // ── INGECOV (mantenimiento de flota): snapshot que el panel reconstruye cada 30 min ──
+  { id: 'ingecov_equipos', modulo: 'INGECOV', nombre: 'Equipos de la flota (códigos y datos)', planilla: { id: '1E883xvPP_Oyt1mjQ2FjZLiY-Jmvyzgi0_UhEq2dFbGY' }, hoja: /^COD_[VLPS]$/,
+    descripcion: 'Maestro de equipos de INGECOV. _hoja indica el grupo: COD_V viales/asfalto/trituración, COD_L transporte liviano, COD_P transporte pesado, COD_S soporte. Trae código interno (ej. RTP-10), nombre/descripción, patente, estado, lugar y operario.', claves: ['CÓDIGO', 'EQUIPO', 'PATENTE'] },
+  { id: 'ingecov_trabajos', modulo: 'INGECOV', nombre: 'Trabajos de taller realizados (histórico + año en curso)', planilla: { id: '1E883xvPP_Oyt1mjQ2FjZLiY-Jmvyzgi0_UhEq2dFbGY' }, hoja: /^TRAB_(LIVE|HIST)$/,
+    descripcion: 'Cada trabajo de mantenimiento hecho a un equipo: fecha, lugar, personal, descripción, tiempo de parada y de trabajo (horas), razón. _hoja TRAB_LIVE = año en curso, TRAB_HIST = años anteriores.', claves: ['CÓDIGO', 'EQUIPO', 'FECHA TRABAJO'] },
+  { id: 'ingecov_trabajos_pendientes', modulo: 'INGECOV', nombre: 'Trabajos de taller pendientes', planilla: { id: '1E883xvPP_Oyt1mjQ2FjZLiY-Jmvyzgi0_UhEq2dFbGY' }, hoja: 'TRAB_PEND',
+    descripcion: 'Trabajos pedidos y todavía no hechos (o resueltos, según ESTADO), con responsable y fecha/descripción de resolución.', claves: ['CODIGO', 'EQUIPO'] },
+  { id: 'ingecov_repuestos', modulo: 'INGECOV', nombre: 'Entregas de repuestos a equipos (con costo)', planilla: { id: '1E883xvPP_Oyt1mjQ2FjZLiY-Jmvyzgi0_UhEq2dFbGY' }, hoja: /^REP_(LIVE|HIST)$/,
+    descripcion: 'Cada entrega de repuestos: N° entrega, fecha, equipo, código, COSTO ENTREGA (pesos), razón, responsable, ITEMS DETALLE (texto), N° PEDIDO, tipo. Si una entrega se imputó a varios equipos aparece una fila por equipo (EQUIPOS IMPUTADOS = cuántos). _hoja REP_LIVE = año en curso.', claves: ['CÓDIGO', 'EQUIPO', 'N° PEDIDO'] },
+  { id: 'ingecov_pedidos', modulo: 'INGECOV', nombre: 'Pedidos de repuestos pendientes de entrega', planilla: { id: '1E883xvPP_Oyt1mjQ2FjZLiY-Jmvyzgi0_UhEq2dFbGY' }, hoja: 'PED_PEND',
+    descripcion: 'Pedidos de repuestos que todavía no se entregaron: N°, fecha, equipo, código, descripción, estado, N° orden, N° entrega.', claves: ['CÓDIGO', 'EQUIPO', 'N°'] },
+  { id: 'ingecov_combustible', modulo: 'INGECOV', nombre: 'Cargas de combustible de equipos pesados y camionetas', planilla: { id: '1E883xvPP_Oyt1mjQ2FjZLiY-Jmvyzgi0_UhEq2dFbGY' }, hoja: 'COMBUSTIBLE',
+    descripcion: 'Cada carga de gasoil: código de equipo, fecha, estado, HOROMETRO ACTUAL, CANTIDAD (litros), tipo, lugar/obra, operario, observaciones. Sirve para consumo por equipo y horómetros.', claves: ['CODIGO', 'FECHA', 'LUGAR'] },
+  { id: 'ingecov_comb_livianos', modulo: 'INGECOV', nombre: 'Cargas de combustible de vehículos livianos', planilla: { id: '1E883xvPP_Oyt1mjQ2FjZLiY-Jmvyzgi0_UhEq2dFbGY' }, hoja: 'COMB_LIVIANOS',
+    descripcion: 'Cargas de combustible de camionetas y autos por patente: fecha, tipo, litros, patente, odómetro, obra, chofer, total en pesos.', claves: ['PATENTE', 'FECHA'] },
+  { id: 'ingecov_service', modulo: 'INGECOV', nombre: 'Estado de service por equipo', planilla: { id: '1E883xvPP_Oyt1mjQ2FjZLiY-Jmvyzgi0_UhEq2dFbGY' }, hoja: 'SVC_PANELPROG',
+    descripcion: 'Por equipo: última fecha de service, último horómetro/km, estimado actual, OPERATIVIDAD, FRECUENCIA de service y ESTADO (si está vencido o próximo). Es lo que usa el panel para "services críticos".', claves: ['CODIGO', 'PATENTE'] },
+  { id: 'ingecov_service_registros', modulo: 'INGECOV', nombre: 'Registros de service (histórico)', planilla: { id: '1E883xvPP_Oyt1mjQ2FjZLiY-Jmvyzgi0_UhEq2dFbGY' }, hoja: 'SERVICE_EQ',
+    descripcion: 'Cada service registrado: código (RAWCOD), mes, planilla de origen, fecha, personal, horómetro ACTUAL y PROXIMO service, serie.', claves: ['RAWCOD', 'FECHA'] },
+  { id: 'ingecov_vtv', modulo: 'INGECOV', nombre: 'Vencimientos de VTV', planilla: { id: '1E883xvPP_Oyt1mjQ2FjZLiY-Jmvyzgi0_UhEq2dFbGY' }, hoja: 'VTV',
+    descripcion: 'Equipo, código, patente y fecha de vencimiento de la VTV.', claves: ['CÓDIGO', 'PATENTE'] },
+  { id: 'ingecov_faltantes', modulo: 'INGECOV', nombre: 'Hallazgos de consistencia (faltantes)', planilla: { id: '1E883xvPP_Oyt1mjQ2FjZLiY-Jmvyzgi0_UhEq2dFbGY' }, hoja: 'FALTANTES',
+    descripcion: 'Problemas detectados automáticamente: TIPO (ej. HOROMETRO_VIEJO, CARGA_SIN_ODOMETRO), equipo, detalle, días y prioridad.', claves: ['CODIGO'] },
+
   // ── COMPRAS (Postgres, vía puente botConsultar) ──
   { id: 'compras_ordenes', modulo: 'COMPRAS', nombre: 'Pedidos de compra — órdenes de compra (circuito de aprobación)', remota: true, tablas: ['ordenes', 'solicitudes', 'items'],
     descripcion: 'Sistema Pedidos de compra INGECO. Tabla ordenes: nro_orden, fecha, proveedor, descripcion, importe, obra, estado (PENDIENTE/APROBADA/RECHAZADA), esperando_a, autorizada_por, pagada_por, ts_pagada. Tabla solicitudes: pedidos (solicitud_id, solicitante_id, destino, descripcion_libre, estado, monto_total, proveedor). Tabla items: renglones de cada pedido (descripcion, cantidad, unidad, codigo_repuesto). Se consulta con la herramienta pedidos_compra, no con leer_tabla.',
@@ -158,7 +182,10 @@ function leerHoja_(sh, fuente, multi) {
     const o = {};
     enc.forEach((h, j) => { if (permitidas[j]) o[h] = valorCelda_(v[j]); });
     if (fuente.filasVedadasRe && Object.keys(o).some(k => fuente.filasVedadasRe.test(String(o[k])))) continue;
-    if (fuente.soloClaves && fuente.soloClaves.indexOf(String(o[fuente.colClave || 'clave'])) < 0) continue;
+    if (fuente.soloClaves) {
+      const colClave = columnas.find(c => c.toLowerCase() === String(fuente.colClave || 'clave').toLowerCase());
+      if (!colClave || fuente.soloClaves.indexOf(String(o[colClave])) < 0) continue;
+    }
     if (multi) o._hoja = sh.getName();
     filas.push(o);
   }

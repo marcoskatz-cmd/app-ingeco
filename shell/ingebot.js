@@ -207,7 +207,8 @@
     E.log.innerHTML = conv.map((m, i) => {
       if (m.rol === 'usuario') return `<div class="ib-msg ib-usuario">${esc(m.texto)}</div>`;
       const fuentes = (m.fuentes || []).map(f => {
-        const mod = ((perfil && perfil.modulos) || []).find(x => x.codigo === f.modulo || (f.modulo === 'TARJAS' && x.codigo === 'TARJA'));
+        const mods = (perfil && perfil.modulos) || [];
+        const mod = mods.find(x => x.codigo === f.modulo) || (f.modulo === 'TARJAS' ? mods.find(x => x.codigo === 'TARJA') : null);
         const label = esc((mod ? mod.nombre : f.modulo) + ' · ' + (f.tabla || f.fuente));
         return mod && mod.url ? `<a class="ib-fuente" href="#modulo/${encodeURIComponent(mod.codigo)}">${label}</a>` : `<span class="ib-fuente">${label}</span>`;
       }).join('');

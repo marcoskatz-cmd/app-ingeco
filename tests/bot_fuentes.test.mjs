@@ -92,3 +92,15 @@ test('asfalto_config devuelve las claves útiles (la columna "clave" no es vedad
   assert.equal(c.esVedada_('CLAVE OBRA'), false);
   assert.equal(c.esVedada_('clave_api'), true);
 });
+
+test('INGECOV habilita las fuentes del snapshot', () => {
+  const c = ctxCon([{ legajo: '7', modulo: 'INGECOV' }]);
+  const ids = c.fuentesDe_('7').map(f => f.id);
+  ['ingecov_equipos', 'ingecov_trabajos', 'ingecov_trabajos_pendientes', 'ingecov_repuestos', 'ingecov_pedidos', 'ingecov_combustible', 'ingecov_service', 'ingecov_vtv', 'ingecov_faltantes'].forEach(id => assert.ok(ids.includes(id), id));
+});
+
+test('soloClaves funciona aunque el encabezado esté en mayúsculas', () => {
+  const c = ctxCon([], { CFG: { CONFIG: [['CLAVE', 'VALOR', 'DESC'], ['PIN', '1234', ''], ['STOCK_MINIMO', 40, '']] } });
+  const f = Object.assign({}, c.fuentePorId_('asfalto_config'), { planilla: { id: 'CFG' } });
+  assert.deepEqual(plano(c.leerFuente_(f).filas.map(x => x.CLAVE)), ['STOCK_MINIMO']);
+});
