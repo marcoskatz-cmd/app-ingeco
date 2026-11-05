@@ -141,7 +141,9 @@ function llamarClaude_(body) {
   if (code < 200 || code >= 300) {
     const msg = (json && json.error && json.error.message) || String(r.getContentText()).slice(0, 200);
     console.warn('Claude API ' + code + ': ' + msg);
-    throw new Error('El asistente no pudo responder ahora (' + code + '). Probá en un rato.');
+    const err = new Error('El asistente no pudo responder ahora (' + code + '). Probá en un rato.');
+    err.detalle = msg;
+    throw err;
   }
   return json;
 }
@@ -220,7 +222,7 @@ function botPreguntar_(ctx, payload) {
     }
   } catch (e) {
     console.warn('botPreguntar_: ' + e + '\n' + (e.stack || ''));
-    return { ok: false, error: String(e.message || e), wa_admin: waAdmin_() };
+    return { ok: false, error: String(e.message || e), detalle: e.detalle || '', wa_admin: waAdmin_() };
   }
   if (corte === 'vueltas') texto = 'Me quedé sin rondas de consulta para esta pregunta. Probá acotarla (un equipo, una obra, un rango de fechas).';
   if (corte === 'tiempo') texto = 'Me quedé sin tiempo para esta pregunta. Probá acotarla (menos fuentes o un rango de fechas más corto).';
@@ -268,11 +270,12 @@ function botSaludo_(ctx, payload) {
 }
 
 /** Diagnóstico: intenta abrir cada planilla del catálogo con la cuenta del servidor. Correr desde el editor. */
-function botDiagnostico() {
+function botDiagnostico(soloId) {
   const vistos = {};
   const out = [];
   FUENTES.filter(f => !f.remota).forEach(f => {
     const id = idPlanilla_(f);
+    if (soloId && id !== soloId) return;
     const k = id || ('(prop ' + f.planilla.prop + ')');
     if (vistos[k]) return;
     vistos[k] = 1;

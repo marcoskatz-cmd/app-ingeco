@@ -13,15 +13,16 @@ function ctxCon(permisos, hojasExtra, props) {
 const ASF = '1rqS_raTVSxjLpWxxhZU9SKVi5BBvfA7SAb27vSBhRco';
 const filasAsfalto = n => [['FECHA', 'STOCK_T', 'RECIBIDO_T']].concat(Array.from({ length: n }, (_, i) => ['2026-10-' + String((i % 28) + 1).padStart(2, '0'), 100 + i, i % 3 ? 0 : 30]));
 
-test('BOT_TOOLS define las 6 herramientas con esquemas estrictos', () => {
+test('BOT_TOOLS define las 6 herramientas; strict solo en las simples', () => {
   const c = ctxCon([]);
   const T = valor(c, 'BOT_TOOLS');
   assert.deepEqual(plano(T.map(t => t.name)).sort(), ['buscar_texto', 'ficha_equipo', 'leer_tabla', 'listar_fuentes', 'pedidos_compra', 'resumir_tabla']);
   T.forEach(t => {
-    assert.equal(t.strict, true, t.name);
-    assert.equal(t.input_schema.additionalProperties, false, t.name);
+    if (t.strict) assert.equal(t.input_schema.additionalProperties, false, t.name);
     assert.ok(Array.isArray(t.input_schema.required), t.name);
   });
+  // La API rechazó strict en todas ("compiled grammar is too large"): solo las dos simples lo llevan.
+  assert.deepEqual(plano(T.filter(t => t.strict).map(t => t.name)).sort(), ['ficha_equipo', 'listar_fuentes']);
 });
 
 test('ejecutarTool_ rechaza una fuente no habilitada sin abrir la planilla', () => {

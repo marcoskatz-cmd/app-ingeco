@@ -11,26 +11,27 @@ const TOOL_LIMITE_DEF = 50;
 const TOOL_BUSCAR_POR_FUENTE = 20;
 const TOOL_FICHA_POR_FUENTE = 20;
 
+// Nota (5-nov-2026): la API rechazó la primera versión con "compiled grammar is too large": demasiadas
+// uniones de tipos con strict:true. Ahora strict solo en las dos herramientas simples; en las demás los
+// opcionales van fuera de `required` y sin uniones (Claude respeta el esquema igual).
 const ESQUEMA_FILTROS = {
   type: 'array',
-  description: 'Condiciones que deben cumplirse todas. op ∈ {=, !=, contiene, >, <, >=, <=, entre, en}. Fechas en formato AAAA-MM-DD. Para "entre" y "en", valor es una lista. Ejemplo: [{"col":"FECHA","op":">=","valor":"2026-10-01"},{"col":"DESTINO","op":"contiene","valor":"autov"}]',
+  description: 'Condiciones que deben cumplirse todas. op: =, !=, contiene, >, <, >=, <=, entre, en. Fechas AAAA-MM-DD. valor es texto o número; para "entre" y "en" es una lista. Ejemplo: [{"col":"FECHA","op":">=","valor":"2026-10-01"},{"col":"DESTINO","op":"contiene","valor":"autov"}]',
   items: {
     type: 'object',
     properties: {
       col: { type: 'string' },
       op: { type: 'string', enum: ['=', '!=', 'contiene', '>', '<', '>=', '<=', 'entre', 'en'] },
-      valor: { anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'array', items: { anyOf: [{ type: 'string' }, { type: 'number' }] } }] }
+      valor: { description: 'texto, número o lista (para entre/en)' }
     },
-    required: ['col', 'op', 'valor'],
-    additionalProperties: false
+    required: ['col', 'op', 'valor']
   }
 };
 const ESQUEMA_METRICA = {
   type: 'object',
-  description: 'Qué calcular por grupo. fn ∈ {sum, count, avg, min, max}; col es la columna numérica (no hace falta para count).',
-  properties: { col: { type: ['string', 'null'] }, fn: { type: 'string', enum: ['sum', 'count', 'avg', 'min', 'max'] } },
-  required: ['col', 'fn'],
-  additionalProperties: false
+  description: 'Qué calcular por grupo. fn: sum, count, avg, min, max; col es la columna numérica (omitir para count).',
+  properties: { col: { type: 'string' }, fn: { type: 'string', enum: ['sum', 'count', 'avg', 'min', 'max'] } },
+  required: ['fn']
 };
 
 const BOT_TOOLS = [
@@ -40,47 +41,44 @@ const BOT_TOOLS = [
     input_schema: { type: 'object', properties: {}, required: [], additionalProperties: false }
   },
   {
-    name: 'leer_tabla', strict: true,
+    name: 'leer_tabla',
     description: 'Lee filas de una tabla (fuente) con filtros estructurados. Devuelve como máximo 300 filas (por defecto 50) más total_coincidencias. Siempre filtrá por fecha o clave antes de leer tablas grandes; para totales usá resumir_tabla.',
     input_schema: {
       type: 'object',
       properties: {
         fuente: { type: 'string', description: 'id de la fuente (ej. asfalto_diario)' },
-        filtros: Object.assign({}, ESQUEMA_FILTROS, { type: ['array', 'null'] }),
-        columnas: { type: ['array', 'null'], items: { type: 'string' }, description: 'Columnas a devolver; null = todas' },
-        orden: { type: ['object', 'null'], properties: { col: { type: 'string' }, dir: { type: 'string', enum: ['asc', 'desc'] } }, required: ['col', 'dir'], additionalProperties: false },
-        limite: { type: ['integer', 'null'], description: 'Máx. 300' }
+        filtros: ESQUEMA_FILTROS,
+        columnas: { type: 'array', items: { type: 'string' }, description: 'Columnas a devolver; omitir = todas' },
+        orden: { type: 'object', properties: { col: { type: 'string' }, dir: { type: 'string', enum: ['asc', 'desc'] } }, required: ['col', 'dir'] },
+        limite: { type: 'integer', description: 'Máx. 300' }
       },
-      required: ['fuente', 'filtros', 'columnas', 'orden', 'limite'],
-      additionalProperties: false
+      required: ['fuente']
     }
   },
   {
-    name: 'resumir_tabla', strict: true,
+    name: 'resumir_tabla',
     description: 'Agrupa y calcula (suma, conteo, promedio, mínimo, máximo) sobre una tabla sin traer las filas. Ideal para "cuánto por mes", "total por obra", "cuántas por estado".',
     input_schema: {
       type: 'object',
       properties: {
         fuente: { type: 'string' },
-        agrupar_por: { type: 'array', items: { type: 'string' }, description: 'Columnas de agrupación (puede ser vacía para un total general)' },
+        agrupar_por: { type: 'array', items: { type: 'string' }, description: 'Columnas de agrupación (vacía = total general)' },
         metrica: ESQUEMA_METRICA,
-        filtros: Object.assign({}, ESQUEMA_FILTROS, { type: ['array', 'null'] })
+        filtros: ESQUEMA_FILTROS
       },
-      required: ['fuente', 'agrupar_por', 'metrica', 'filtros'],
-      additionalProperties: false
+      required: ['fuente', 'agrupar_por', 'metrica']
     }
   },
   {
-    name: 'buscar_texto', strict: true,
+    name: 'buscar_texto',
     description: 'Busca un texto (nombre de obra, código de equipo, proveedor) en todas las columnas de texto de las fuentes habilitadas. Devuelve hasta 20 filas por fuente. Útil cuando no sabés en qué tabla está algo.',
     input_schema: {
       type: 'object',
       properties: {
         texto: { type: 'string' },
-        fuentes: { type: ['array', 'null'], items: { type: 'string' }, description: 'ids de fuentes a recorrer; null = todas las habilitadas (menos las remotas)' }
+        fuentes: { type: 'array', items: { type: 'string' }, description: 'ids de fuentes a recorrer; omitir = todas las habilitadas (menos las remotas)' }
       },
-      required: ['texto', 'fuentes'],
-      additionalProperties: false
+      required: ['texto']
     }
   },
   {
@@ -89,19 +87,18 @@ const BOT_TOOLS = [
     input_schema: { type: 'object', properties: { codigo: { type: 'string' } }, required: ['codigo'], additionalProperties: false }
   },
   {
-    name: 'pedidos_compra', strict: true,
-    description: 'Consulta el sistema Pedidos de compra (órdenes de compra, pedidos e ítems del circuito de aprobación). tabla ∈ {ordenes, solicitudes, items}. Misma gramática de filtros que leer_tabla; con agrupar_por y metrica devuelve agregados. Requiere permiso COMPRAS.',
+    name: 'pedidos_compra',
+    description: 'Consulta el sistema Pedidos de compra (órdenes de compra, pedidos e ítems del circuito de aprobación). tabla: ordenes, solicitudes o items. Misma gramática de filtros que leer_tabla; con agrupar_por y metrica devuelve agregados. Requiere permiso COMPRAS.',
     input_schema: {
       type: 'object',
       properties: {
         tabla: { type: 'string', enum: ['ordenes', 'solicitudes', 'items'] },
-        filtros: Object.assign({}, ESQUEMA_FILTROS, { type: ['array', 'null'] }),
-        agrupar_por: { type: ['array', 'null'], items: { type: 'string' } },
-        metrica: Object.assign({}, ESQUEMA_METRICA, { type: ['object', 'null'] }),
-        limite: { type: ['integer', 'null'] }
+        filtros: ESQUEMA_FILTROS,
+        agrupar_por: { type: 'array', items: { type: 'string' } },
+        metrica: ESQUEMA_METRICA,
+        limite: { type: 'integer' }
       },
-      required: ['tabla', 'filtros', 'agrupar_por', 'metrica', 'limite'],
-      additionalProperties: false
+      required: ['tabla']
     }
   }
 ];
