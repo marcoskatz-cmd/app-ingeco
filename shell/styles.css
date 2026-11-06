@@ -293,21 +293,14 @@ body.modo-lector .toast { bottom: 24px; }
 .ib-fab.der { right: 14px; } .ib-fab.izq { left: 14px; }
 .ib-fab.ib-arrastrando { cursor: grabbing; box-shadow: var(--sombra-alta); transition: none; transform: scale(1.06); }
 .ib-fab.ib-abierto { box-shadow: 0 0 0 3px var(--azul-suave), var(--sombra-media); }
-.ib-fab .ib-cara { width: 42px; height: 42px; }
-.ib-cara { display: block; }
-.ib-cara .ib-casco { fill: var(--ambar); }
-.ib-cara .ib-cabeza { fill: var(--azul); }
-.ib-cara .ib-visor { fill: var(--teal-suave); }
-.ib-cara .ib-ojos { fill: var(--teal); transform-origin: 32px 42px; animation: ib-parpadeo 4.2s infinite; }
-.ib-cara .ib-boca { stroke: #fff; stroke-width: 2.2; stroke-linecap: round; fill: none; }
-.ib-cara .ib-oreja { fill: var(--azul-claro); }
-.ib-cara .ib-antena { stroke: var(--azul); stroke-width: 2.4; stroke-linecap: round; }
-.ib-cara .ib-antena-p { fill: var(--teal); }
-@keyframes ib-parpadeo { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+.ib-fab .ib-cara { width: 48px; height: 48px; }
+.ib-cara { display: block; object-fit: contain; pointer-events: none; }
 .ib-brazo { position: absolute; width: 22px; height: 22px; right: -4px; bottom: 6px; stroke: var(--azul); stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform-origin: 6px 20px; }
 .ib-fab.izq .ib-brazo { right: auto; left: -4px; transform: scaleX(-1); }
 .ib-fab.ib-saludando { animation: ib-rebote .6s ease-out; }
 .ib-fab.ib-saludando .ib-brazo { opacity: 1; animation: ib-saludo 1.2s ease-in-out 2; }
+.ib-fab.ib-saludando .ib-cara { animation: ib-cabeceo 1.2s ease-in-out 2; transform-origin: 50% 90%; }
+@keyframes ib-cabeceo { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-6deg); } 70% { transform: rotate(5deg); } }
 @keyframes ib-rebote { 0% { transform: translateY(40px) scale(.6); opacity: 0; } 60% { transform: translateY(-8px) scale(1.05); opacity: 1; } 100% { transform: none; } }
 @keyframes ib-saludo { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-22deg); } 75% { transform: rotate(16deg); } }
 .ib-badge { position: absolute; top: -3px; right: -3px; min-width: 20px; height: 20px; border-radius: 10px; background: var(--ambar); color: #fff; font-size: .72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
@@ -317,7 +310,7 @@ body.modo-lector .toast { bottom: 24px; }
 .ib-pestana.der { right: 0; border-radius: 12px 0 0 12px; justify-content: flex-start; } .ib-pestana.izq { left: 0; border-radius: 0 12px 12px 0; justify-content: flex-end; }
 .ib-pestana .ib-cara { width: 40px; height: 40px; flex: none; }
 .ib-pestana.der .ib-cara { margin-left: 4px; } .ib-pestana.izq .ib-cara { margin-right: 4px; }
-@media (prefers-reduced-motion: reduce) { .ib-fab, .ib-cara .ib-ojos, .ib-brazo, .ib-globo { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .ib-fab, .ib-cara, .ib-brazo, .ib-globo { animation: none !important; } }
 
 .ib-panel { position: fixed; z-index: 46; left: 0; right: 0; bottom: 0; top: max(10vh, 72px); max-width: 560px; margin: 0 auto; background: var(--superficie); border-radius: 20px 20px 0 0; box-shadow: var(--sombra-alta); display: flex; flex-direction: column; animation: subir .2s ease-out; padding-bottom: env(safe-area-inset-bottom); }
 @media (min-width: 900px) { .ib-panel { left: auto; right: 24px; bottom: 24px; top: auto; height: min(680px, calc(100vh - 100px)); width: 420px; border-radius: 20px; } }

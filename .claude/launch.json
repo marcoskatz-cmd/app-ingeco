@@ -4,8 +4,26 @@
     {
       "name": "app-ingeco-shell",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "shell"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--directory",
+        "shell"
+      ],
       "port": 8765
+    },
+    {
+      "name": "app-ingeco-root",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8766",
+        "--directory",
+        "."
+      ],
+      "port": 8766
     }
   ]
 }

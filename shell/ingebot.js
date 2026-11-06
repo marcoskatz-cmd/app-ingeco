@@ -17,16 +17,8 @@
     DASHBOARD: ['¿Cuánto se cobró este mes?', 'OC de insumos por obra']
   };
 
-  // Cara de IngeBot: casco ámbar, cabeza azul, visor teal con ojos que parpadean, antena corta.
-  const CARA = `<svg class="ib-cara" viewBox="0 0 64 64" aria-hidden="true">
-    <line class="ib-antena" x1="32" y1="4" x2="32" y2="12"/><circle class="ib-antena-p" cx="32" cy="4" r="2.6"/>
-    <path class="ib-casco" d="M14 26c0-10 8-16 18-16s18 6 18 16v2H14z"/><rect class="ib-casco" x="10" y="26" width="44" height="5" rx="2.5"/>
-    <rect class="ib-cabeza" x="14" y="31" width="36" height="26" rx="9"/>
-    <rect class="ib-visor" x="19" y="36" width="26" height="12" rx="6"/>
-    <g class="ib-ojos"><circle cx="27" cy="42" r="2.6"/><circle cx="37" cy="42" r="2.6"/></g>
-    <path class="ib-boca" d="M27 52h10"/>
-    <rect class="ib-oreja" x="9" y="38" width="5" height="10" rx="2"/><rect class="ib-oreja" x="50" y="38" width="5" height="10" rx="2"/>
-  </svg>`;
+  // Cara de IngeBot: ilustración generada por Marcos (5-nov-2026), PNG con fondo transparente.
+  const CARA = `<img class="ib-cara" src="ingebot-128.png" srcset="ingebot-128.png 1x, ingebot.png 4x" alt="" draggable="false">`;
   const BRAZO = `<svg class="ib-brazo" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 20V9a3 3 0 0 1 6 0v3l5-6"/></svg>`;
 
   const ls = { get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } }, del: k => { try { localStorage.removeItem(k); } catch (e) { } } };

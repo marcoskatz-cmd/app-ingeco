@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>IngeBot — bocetos</title>
+<link rel="stylesheet" href="../../../shell/ingeco.css">
+<style>
+  body { padding: 28px; background: var(--fondo); }
+  h1 { font-family: var(--display); margin: 0 0 4px; }
+  .sub { color: var(--texto-2); margin-bottom: 24px; }
+  .fila { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .card { background: var(--superficie); border: 1px solid var(--linea); border-radius: 16px; padding: 20px; text-align: center; }
+  .card h2 { font-family: var(--display); font-size: 1.1rem; margin: 14px 0 4px; }
+  .card p { color: var(--texto-2); font-size: .9rem; margin: 0; min-height: 3.6em; }
+  .grande { width: 160px; height: 160px; margin: 0 auto; display: block; }
+  .tam { display: flex; justify-content: center; gap: 14px; align-items: center; margin-top: 14px; }
+  .fab { width: 58px; height: 58px; border-radius: 50%; background: var(--superficie); box-shadow: var(--sombra-media), 0 0 0 1px var(--linea); display: flex; align-items: center; justify-content: center; }
+  .fab svg { width: 42px; height: 42px; }
+  .chico { width: 28px; height: 28px; }
+  .oscuro { background: var(--tinta); border-radius: 12px; padding: 10px; display: inline-flex; }
+  .oscuro svg { width: 44px; height: 44px; }
+</style></head><body>
+<h1>IngeBot — tres caras</h1>
+<div class="sub">Trazo INGECO: azul, teal, ámbar. Cada una a tamaño grande, en el botón flotante (42 px), en chip (28 px) y sobre fondo oscuro.</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <!-- A: casco de obra + visor único (robot capataz) -->
+  <symbol id="a" viewBox="0 0 64 64">
+    <path d="M12 30c0-11 9-19 20-19s20 8 20 19v1H12z" fill="#d98f00"/>
+    <rect x="8" y="30" width="48" height="5" rx="2.5" fill="#b8740a"/>
+    <rect x="29" y="8" width="6" height="7" rx="2" fill="#d98f00"/>
+    <rect x="13" y="35" width="38" height="23" rx="8" fill="#1e3a8a"/>
+    <rect x="18" y="40" width="28" height="9" rx="4.5" fill="#0e8a7a"/>
+    <rect x="22" y="42.5" width="7" height="4" rx="2" fill="#dcf1ee"/>
+    <rect x="35" y="42.5" width="7" height="4" rx="2" fill="#dcf1ee"/>
+    <path d="M26 53h12" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+    <rect x="8" y="42" width="5" height="9" rx="2" fill="#2b4fb3"/><rect x="51" y="42" width="5" height="9" rx="2" fill="#2b4fb3"/>
+  </symbol>
+  <!-- B: burbuja de chat con cara (ojos teal) y antena: mensajería -->
+  <symbol id="b" viewBox="0 0 64 64">
+    <path d="M12 12h40a6 6 0 0 1 6 6v26a6 6 0 0 1-6 6H30l-11 9v-9h-7a6 6 0 0 1-6-6V18a6 6 0 0 1 6-6z" fill="#1e3a8a"/>
+    <circle cx="32" cy="7" r="3" fill="#0e8a7a"/><path d="M32 10v3" stroke="#0e8a7a" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="24" cy="29" r="4.2" fill="#dcf1ee"/><circle cx="40" cy="29" r="4.2" fill="#dcf1ee"/>
+    <circle cx="25" cy="29.5" r="1.8" fill="#0e8a7a"/><circle cx="41" cy="29.5" r="1.8" fill="#0e8a7a"/>
+    <path d="M25 39c3 3 11 3 14 0" stroke="#d98f00" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+  </symbol>
+  <!-- C: casco + cara redonda estilo mascota, ojos grandes, mejillas -->
+  <symbol id="c" viewBox="0 0 64 64">
+    <circle cx="32" cy="36" r="22" fill="#1e3a8a"/>
+    <path d="M11 32c1-12 10-20 21-20s20 8 21 20z" fill="#d98f00"/>
+    <rect x="7" y="31" width="50" height="5" rx="2.5" fill="#b8740a"/>
+    <rect x="29" y="6" width="6" height="8" rx="2" fill="#d98f00"/>
+    <circle cx="24" cy="42" r="5" fill="#fff"/><circle cx="40" cy="42" r="5" fill="#fff"/>
+    <circle cx="25" cy="43" r="2.4" fill="#0e8a7a"/><circle cx="41" cy="43" r="2.4" fill="#0e8a7a"/>
+    <circle cx="17" cy="48" r="2.5" fill="#2b4fb3"/><circle cx="47" cy="48" r="2.5" fill="#2b4fb3"/>
+    <path d="M27 51c2 2 8 2 10 0" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+  </symbol>
+</svg>
+
+<div class="fila">
+  <div class="card">
+    <svg class="grande"><use href="#a"/></svg>
+    <h2>A · Capataz</h2><p>Casco de obra y visor teal. Dice "obra vial" de lejos; es el más industrial.</p>
+    <div class="tam"><div class="fab"><svg><use href="#a"/></svg></div><svg class="chico"><use href="#a"/></svg><div class="oscuro"><svg><use href="#a"/></svg></div></div>
+  </div>
+  <div class="card">
+    <svg class="grande"><use href="#b"/></svg>
+    <h2>B · Burbuja</h2><p>Globo de chat con cara y antena. Dice "preguntame"; el más liviano y moderno.</p>
+    <div class="tam"><div class="fab"><svg><use href="#b"/></svg></div><svg class="chico"><use href="#b"/></svg><div class="oscuro"><svg><use href="#b"/></svg></div></div>
+  </div>
+  <div class="card">
+    <svg class="grande"><use href="#c"/></svg>
+    <h2>C · Mascota</h2><p>Cara redonda con casco, ojos grandes y mejillas. El más simpático; funciona bien chiquito.</p>
+    <div class="tam"><div class="fab"><svg><use href="#c"/></svg></div><svg class="chico"><use href="#c"/></svg><div class="oscuro"><svg><use href="#c"/></svg></div></div>
+  </div>
+</div>
+</body></html>
