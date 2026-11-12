@@ -1,5 +1,5 @@
 /* Service worker INGECO: caché del shell + recepción de push. */
-const CACHE = 'ingeco-shell-v32';
+const CACHE = 'ingeco-shell-v33';
 const DIAG = 'ingeco-diag';      // fallas anotadas por el SW (las levanta app.js y las manda al backend)
 const ESPERA_RED = 4000;         // si GitHub Pages no contesta en 4 s, se abre con la copia guardada
 const SHELL = ['./', './index.html', './app.js', './ingebot.js', './ingebot.png', './ingebot-128.png', './styles.css', './ingeco.css', './ingeco.js', './manifest.json', './icon-192.png', './icon-512.png', './logo.png', './logo-pavimax.png', './logo-terminal.png'];
