@@ -316,9 +316,10 @@ const ICONOS = {
   baches: '<path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><path d="M9 10l2 1 1-2 2 2 1-1"/>',
   avisos: '<path d="M3 11l18-7-7 18-2.5-7.5z"/>',
   admin: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  administracion: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4M9 15l2 2 4-4"/>',
   generico: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'
 };
-const ICONO_POR_CODIGO = { INGECOV: 'flota', COMPRAS: 'compras', COMBUSTIBLE: 'combustible', TARJA: 'tarja', ROPA: 'ropa', PAVIMAX: 'pavimax', PAVIMAX_OP: 'planta', TRASLADOS: 'traslados', TRITURACION: 'trituracion', LICITACIONES: 'licitaciones', LOCALES_TERMINAL: 'locales', PEDIDOS_TERMINAL: 'compras', AUTOVIAS: 'autovias', ASFALTO: 'asfalto', EXPEDIENTES: 'expedientes', DASHBOARD: 'dashboard', DEMARCACION: 'demarcacion', DEMARCACION_MON: 'demarcacion', BACHES: 'baches', AVISOS: 'avisos', ADMIN: 'admin' };
+const ICONO_POR_CODIGO = { INGECOV: 'flota', COMPRAS: 'compras', COMBUSTIBLE: 'combustible', TARJA: 'tarja', ROPA: 'ropa', PAVIMAX: 'pavimax', PAVIMAX_OP: 'planta', TRASLADOS: 'traslados', TRITURACION: 'trituracion', LICITACIONES: 'licitaciones', LOCALES_TERMINAL: 'locales', PEDIDOS_TERMINAL: 'compras', AUTOVIAS: 'autovias', ASFALTO: 'asfalto', EXPEDIENTES: 'expedientes', DASHBOARD: 'dashboard', DEMARCACION: 'demarcacion', DEMARCACION_MON: 'demarcacion', BACHES: 'baches', AVISOS: 'avisos', ADMIN: 'admin', ADMINISTRACION: 'administracion' };
 const ICONO_POR_NOMBRE = [[/flota|manten/i, 'flota'], [/compra|pedido|orden/i, 'compras'], [/combust|gasoil/i, 'combustible'], [/tarja|hora/i, 'tarja'], [/ropa|indument/i, 'ropa'], [/operario|planta/i, 'planta'], [/pavimax/i, 'pavimax'], [/traslad/i, 'traslados'], [/tritur|árido/i, 'trituracion'], [/licitac/i, 'licitaciones'], [/local|alquiler/i, 'locales'], [/autov|bacheo/i, 'autovias'], [/asfalt/i, 'asfalto'], [/expedient/i, 'expedientes'], [/demarc/i, 'demarcacion'], [/bache|waze/i, 'baches']];
 function claveIcono(m) {
   const cod = String(m.codigo || '').toUpperCase();
