@@ -30,6 +30,16 @@
     }
   }
 
+  // Fuente Barlow sin bloquear la pantalla (antes era un @import en ingeco.css: si Google Fonts
+  // tardaba, ningún sistema se mostraba hasta que respondiera).
+  var FUENTES = 'https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap';
+  try {
+    if (!document.querySelector('link[href^="https://fonts.googleapis.com/css2?family=Barlow"]')) {
+      var lf = document.createElement('link'); lf.rel = 'stylesheet'; lf.href = FUENTES;
+      (document.head || document.documentElement).appendChild(lf);
+    }
+  } catch (e) { }
+
   var enIframe;
   try { enIframe = window.self !== window.top; } catch (e) { enIframe = true; }
   var sesionGuard = false, marcaPestana = false;

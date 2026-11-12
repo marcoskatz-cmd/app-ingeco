@@ -5,12 +5,12 @@
  * El shell manda Content-Type text/plain para evitar el preflight CORS.
  *
  * Acciones públicas (sin token):  login_google, validar_token, notificar (con clave_sistema), vapid, ping
- * Acciones de usuario (token):    perfil, cerrar_sesion, bandeja, marcar_leido, suscribir_push,
+ * Acciones de usuario (token):    perfil, cerrar_sesion, bandeja, marcar_leido, suscribir_push, reportar_fallas,
  *                                 desuscribir_push, bot_preguntar, bot_valorar, bot_saludo (alias viejos: ayuda, valorar_ayuda, saludo_ayuda)
  * Acciones ADMIN (token+ADMIN):   admin_usuarios, admin_alta, admin_set_permiso, admin_editar,
  *                                 admin_cerrar_sesiones, admin_baja, admin_ficha, admin_importar, admin_modulos,
  *                                 admin_guardar_modulo, admin_instructivos, admin_guardar_instructivo,
- *                                 admin_stats_bot, admin_aviso, admin_diagnostico
+ *                                 admin_stats_bot, admin_aviso, admin_diagnostico, admin_fallas
  */
 
 const PUBLICAS = {
@@ -42,6 +42,7 @@ const USUARIO = {
   valorar_ayuda: (ctx, p) => botValorar_(ctx, p),
   saludo_ayuda: (ctx, p) => botSaludo_(ctx, p),
   instructivos_mios: (ctx, p) => instructivosMios_(ctx, p),
+  reportar_fallas: (ctx, p) => reportarFallas_(ctx, p),
   // Módulo AVISOS (comunicados de personas)
   com_catalogo: ctx => catalogoDestinatarios_(ctx),
   com_preview: (ctx, p) => previewDestinatarios_(ctx, p),
@@ -74,10 +75,11 @@ const ADMIN = {
   admin_link_lector: (ctx, p) => regenerarLinkLector_(ctx, p),
   admin_revocar_lector: (ctx, p) => revocarLinkLector_(ctx, p),
   admin_exportar: (ctx, p) => exportarAvisos_(ctx, p),
+  admin_fallas: (ctx, p) => listarFallas_(ctx, p),
   admin_diagnostico: ctx => { requiereAdmin_(ctx); return Object.assign({ ok: true }, diagnostico_()); }
 };
 
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 
 // Tiempos por etapa del pedido (se devuelven en _perf para diagnosticar lentitud).
 const _perf = { t0: Date.now(), marcas: [] };

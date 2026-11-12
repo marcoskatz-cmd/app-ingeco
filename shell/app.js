@@ -29,20 +29,101 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&a
 const dispositivo = () => (navigator.userAgent.match(/\(([^)]+)\)/) || [, navigator.userAgent])[1].slice(0, 80);
 
 // ───────────────────────── API ─────────────────────────
+// Tiempo límite por llamada: si el servidor no contesta, se corta y se avisa en vez de quedar trabado.
+// El bot y las cargas grandes tardan de verdad (el bot, hasta ~1 min); el resto responde en 1–5 s.
+const TIEMPO_API = { bot_preguntar: 150000, admin_importar: 120000, admin_exportar: 120000, com_crear: 90000, login_google: 40000 };
+const TIEMPO_API_DEF = 25000;
+
 async function api(accion, payload, opts) {
   opts = opts || {};
   if (!opts.silencioso) mostrarCargando(true);
+  const t0 = Date.now();
+  const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), TIEMPO_API[accion] || TIEMPO_API_DEF) : null;
+  let tipo = 'red', detalle = '';
   try {
     const r = await fetch(CONFIG.BACKEND_URL, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ accion, token: S.token, payload: payload || {} })
+      body: JSON.stringify({ accion, token: S.token, payload: payload || {} }),
+      signal: ctrl ? ctrl.signal : undefined
     });
-    const j = await r.json();
+    tipo = 'respuesta';
+    if (!r.ok) detalle = 'HTTP ' + r.status;
+    const j = await r.json();   // una página de error de Google (HTML) cae al catch como 'respuesta'
     if (j.relogin) { cerrarSesionLocal(); mostrarVista('login'); toast(j.error, 'mal'); }
+    if (accion !== 'reportar_fallas') enviarFallasPendientes();
     return j;
   } catch (e) {
-    return { ok: false, error: 'Sin conexión. Fijate la señal y probá de nuevo.', offline: true };
-  } finally { if (!opts.silencioso) mostrarCargando(false); }
+    if (ctrl && ctrl.signal.aborted) tipo = 'timeout';
+    if (!detalle) detalle = String((e && e.message) || e);
+    if (accion !== 'reportar_fallas') anotarFalla({ accion, tipo, ms: Date.now() - t0, detalle });
+    return {
+      ok: false, offline: true, tipo_falla: tipo,
+      error: tipo === 'timeout' ? 'El servidor no responde. Probá de nuevo en un rato.' : 'Sin conexión. Fijate la señal y probá de nuevo.'
+    };
+  } finally { clearTimeout(timer); if (!opts.silencioso) mostrarCargando(false); }
+}
+
+// ───────────────────────── Registro de fallas de conexión ─────────────────────────
+// Cada llamada que no obtuvo respuesta se anota en el celular con un sondeo hecho en ese momento:
+// ¿hay internet en general (Cloudflare)? ¿responde Google (el backend)? ¿responde el servidor de la App
+// (GitHub Pages)? Cuando vuelve la conexión, el lote se manda al backend (hoja FALLAS_RED).
+// Así, después de una caída se sabe si fue el internet de la oficina, Google o GitHub.
+const FALLAS_KEY = 'ingeco_fallas';
+function leerFallas() { try { return JSON.parse(localStorage.getItem(FALLAS_KEY) || '[]'); } catch (e) { return []; } }
+function guardarFallas(l) { try { localStorage.setItem(FALLAS_KEY, JSON.stringify(l.slice(-200))); } catch (e) { } }
+
+async function responde(url, ms) {
+  const c = typeof AbortController === 'function' ? new AbortController() : null;
+  const tm = c ? setTimeout(() => c.abort(), ms) : null;
+  try { await fetch(url, { mode: 'no-cors', cache: 'no-store', signal: c ? c.signal : undefined }); return true; }
+  catch (e) { return false; }
+  finally { clearTimeout(tm); }
+}
+
+let ultimoSondeo = 0;
+async function sondearConexion() {
+  const t = Date.now();
+  const [internet, google, github] = await Promise.all([
+    responde('https://www.cloudflare.com/cdn-cgi/trace?t=' + t, 8000),
+    responde(CONFIG.BACKEND_URL + '?accion=ping&t=' + t, 12000),
+    responde(new URL('manifest.json?sondeo=' + t, location.href).href, 8000)   // el SW deja pasar ?sondeo directo a la red
+  ]);
+  return { internet, google, github };
+}
+
+async function anotarFalla(f) {
+  f = Object.assign({ t: Date.now(), online: navigator.onLine, conexion: (navigator.connection && navigator.connection.effectiveType) || '' }, f);
+  // Como mucho un sondeo por minuto (perfil y bandeja fallan juntas cada 3 min).
+  if (Date.now() - ultimoSondeo > 60000) {
+    ultimoSondeo = Date.now();
+    try { Object.assign(f, await sondearConexion()); } catch (e) { }
+  }
+  const l = leerFallas(); l.push(f); guardarFallas(l);
+}
+
+let enviandoFallas = false;
+function enviarFallasPendientes() {
+  if (enviandoFallas || !S.token) return;
+  const lote = leerFallas().slice(0, 50);
+  if (!lote.length) return;
+  enviandoFallas = true;
+  api('reportar_fallas', { fallas: lote, dispositivo: dispositivo() }, { silencioso: true })
+    .then(r => { if (r.ok) guardarFallas(leerFallas().filter(f => !lote.some(x => x.t === f.t && x.accion === f.accion))); })
+    .finally(() => { enviandoFallas = false; });
+}
+
+/** El service worker anota cuándo tuvo que abrir la App con la copia guardada porque GitHub no respondía. */
+async function traerFallasDelShell() {
+  try {
+    if (!('caches' in window)) return;
+    const c = await caches.open('ingeco-diag');
+    const r = await c.match('__fallas');
+    if (!r) return;
+    const l = await r.json();
+    await c.delete('__fallas');
+    if (Array.isArray(l) && l.length) guardarFallas(leerFallas().concat(l));
+  } catch (e) { }
 }
 
 // ───────────────────────── UI básica ─────────────────────────
@@ -121,7 +202,12 @@ $('btn-volver').onclick = () => irA('#inicio');
 document.querySelectorAll('#nav button').forEach(b => b.onclick = () => { vibrar(); irA(b.dataset.nav); });
 $('btn-refrescar').onclick = async () => { vibrar(); const b = $('btn-refrescar'); b.style.transform = 'rotate(360deg)'; b.style.transition = 'transform .5s'; setTimeout(() => { b.style.transition = ''; b.style.transform = ''; }, 500); if (S.token) await refrescar(false); else if (S.lectorToken) verLector(); };
 function vibrar() { try { if (navigator.vibrate) navigator.vibrate(8); } catch (e) { } }
-function pintarOffline(off) { $('banner-offline').hidden = !off; }
+function pintarOffline(off, tipo) {
+  $('banner-offline').hidden = !off;
+  if (off) $('banner-offline').querySelector('span').textContent = tipo === 'timeout'
+    ? 'El servidor no responde. Te mostramos lo último que llegó; reintentamos solos cada 3 minutos.'
+    : 'Sin conexión. Te mostramos lo último que llegó.';
+}
 window.addEventListener('online', () => { pintarOffline(false); if (S.token) refrescar(true); });
 window.addEventListener('offline', () => pintarOffline(true));
 
@@ -199,7 +285,7 @@ async function refrescar(silencioso) {
   pintarCampana();
   if (!$('v-inicio').hidden) verInicio();
   if (!$('v-bandeja').hidden) verBandeja();
-  pintarOffline(!!b.offline);
+  pintarOffline(!!b.offline, b.tipo_falla);
   if (!silencioso && b.offline) toast(b.error, 'mal');
 }
 
@@ -1032,6 +1118,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
     navigator.serviceWorker.register('sw.js').catch(() => { });
     navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.tipo === 'push') refrescar(true); });
   }
+  traerFallasDelShell();
   if (/^#(ver|sesion|error)\//.test(location.hash)) { enrutar(); return; }
   if (/[#&]id_token=|[#&]error=/.test(location.hash)) { if (await procesarRetornoGoogle()) return; }
   if (!S.token) {

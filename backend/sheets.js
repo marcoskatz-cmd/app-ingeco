@@ -22,7 +22,8 @@ const HOJAS = {
   SUSCRIPCIONES: ['legajo', 'endpoint', 'p256dh', 'auth', 'dispositivo', 'creada', 'ultimo_envio_ok', 'fallos'],
   INSTRUCTIVOS: ['modulo', 'seccion', 'texto', 'actualizado'],
   TICKETS: ['ticket', 'legajo', 'modulo', 'creado', 'usado', 'sesion'],
-  CONSULTAS_BOT: ['fecha', 'legajo', 'modulo_contexto', 'pregunta', 'respuesta', 'tokens', 'util', 'fuentes', 'vueltas', 'ms']
+  CONSULTAS_BOT: ['fecha', 'legajo', 'modulo_contexto', 'pregunta', 'respuesta', 'tokens', 'util', 'fuentes', 'vueltas', 'ms'],
+  FALLAS_RED: ['recibido', 'legajo', 'dispositivo', 'fecha', 'accion', 'tipo', 'ms', 'online', 'internet', 'google', 'conexion', 'detalle']
 };
 
 // Memo por request: cada hoja se lee una sola vez por ejecución.

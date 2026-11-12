@@ -4,7 +4,8 @@
    @layer ingeco, así cualquier regla propia de un sistema le gana.
    Paleta segura para daltonismo rojo-verde. Solo modo claro. */
 
-@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap');
+/* La fuente Barlow la inyecta ingeco.js sin bloquear: un @import acá frenaba la pantalla de TODOS los
+   sistemas mientras Google Fonts no respondiera. Sin la fuente se ve con la del sistema (ver --cuerpo y --display). */
 
 :root {
   --azul: #1e3a8a;

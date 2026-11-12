@@ -165,6 +165,16 @@ function enviarComunicado_(id) {
 
 /** Trigger cada 5 min: envía los programados cuya hora llegó. */
 function enviarProgramados() {
+  // El 11 y 12-nov-2026 una ejecución quedó colgada 32 min dentro de Google ("error en el servidor").
+  // Marca en caché (vence sola a los 10 min) para que las siguientes no se apilen sobre la colgada.
+  // No se usa LockService: el lock de script es compartido con el bot y una ejecución colgada lo trabaría.
+  const cache = CacheService.getScriptCache();
+  if (cache.get('enviando_programados')) { console.warn('enviarProgramados: hay otra corriendo, salteo'); return; }
+  cache.put('enviando_programados', '1', 600);
+  try { enviarProgramados_(); } finally { cache.remove('enviando_programados'); }
+}
+
+function enviarProgramados_() {
   const ahora = Date.now();
   leer_('COMUNICADOS').filter(c => c.estado === 'programado' && c.programado_para && new Date(c.programado_para).getTime() <= ahora)
     .forEach(c => { try { enviarComunicado_(c.id); } catch (e) { console.error('enviarProgramados ' + c.id + ': ' + e); } });
