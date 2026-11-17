@@ -79,7 +79,7 @@ const ADMIN = {
   admin_diagnostico: ctx => { requiereAdmin_(ctx); return Object.assign({ ok: true }, diagnostico_()); }
 };
 
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 
 // Tiempos por etapa del pedido (se devuelven en _perf para diagnosticar lentitud).
 const _perf = { t0: Date.now(), marcas: [] };

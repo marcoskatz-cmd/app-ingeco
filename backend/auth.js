@@ -100,7 +100,80 @@ function sesionDe_(token) {
 
 function perfil_(u) {
   const bot = tienePermiso_(u.legajo, 'BOT') ? Object.assign({ habilitado: true }, cupoDe_(u.legajo)) : { habilitado: false };
-  return { legajo: u.legajo, nombre_visible: u.nombre_visible, email: u.email, sector: u.sector, modulos: modulosDe_(u.legajo), es_admin: tienePermiso_(u.legajo, 'ADMIN'), bot };
+  const mods = modulosDe_(u.legajo);
+  const p = { legajo: u.legajo, nombre_visible: u.nombre_visible, email: u.email, sector: u.sector, modulos: mods, es_admin: tienePermiso_(u.legajo, 'ADMIN'), bot };
+  // Para abrir un sistema sin esperar al servidor (17-nov-2026): el perfil ya trae el pase firmado y un
+  // ticket listo por módulo. Si algo de esto falla, el perfil sale igual y el shell pide el ticket como antes.
+  try {
+    const pase = pase_(u, mods);
+    if (pase) { p.pase = pase.pase; p.pase_exp = pase.exp; }
+    p.tickets = ticketsPara_(u, mods);
+    marca_('pase');
+  } catch (e) { console.warn('pase: ' + e); }
+  return p;
+}
+
+// ───────────── Pase firmado: identidad que el sistema valida sin consultar al backend ─────────────
+// Antes, cada apertura de un sistema hacía dos viajes a este backend (pedir ticket + canjearlo), y el canje
+// era una consulta bloqueante con la pantalla en blanco. El pase es la identidad de la persona firmada con
+// una llave privada RSA (Script Property PASE_PRIV); guard.js trae la llave pública y lo verifica en el
+// navegador. Nadie puede fabricar un pase sin la llave privada, y vence a las PASE_H horas.
+// Adentro viaja la "sesión de módulo" (la que los backends de cada sistema verifican con
+// validar_sesion_modulo): también firmada (HMAC con PASE_HMAC), así que no ocupa planilla ni caché.
+const PASE_H = 12;
+
+function b64u_(x) { return Utilities.base64EncodeWebSafe(x, Utilities.Charset.UTF_8).replace(/=+$/, ''); }
+function b64uBytes_(bytes) { return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/, ''); }
+
+/** Sesión de módulo sin estado: u1.<legajo>.<vence en base 36>.<firma>. '' si falta el secreto. */
+function sesionFirmada_(legajo, exp) {
+  const secreto = prop_('PASE_HMAC', false);
+  if (!secreto) return '';
+  const cuerpo = 'u1.' + encodeURIComponent(String(legajo)).replace(/\./g, '%2E') + '.' + Number(exp).toString(36);
+  return cuerpo + '.' + b64uBytes_(Utilities.computeHmacSha256Signature(cuerpo, secreto));
+}
+
+/** Devuelve {legajo, exp} si la firma es buena (no mira el vencimiento), o null. */
+function leerSesionFirmada_(s) {
+  const partes = String(s || '').split('.');
+  if (partes.length !== 4 || partes[0] !== 'u1') return null;
+  const secreto = prop_('PASE_HMAC', false);
+  if (!secreto) return null;
+  const cuerpo = partes.slice(0, 3).join('.');
+  if (b64uBytes_(Utilities.computeHmacSha256Signature(cuerpo, secreto)) !== partes[3]) return null;
+  const exp = parseInt(partes[2], 36);
+  if (!exp) return null;
+  return { legajo: decodeURIComponent(partes[1]), exp };
+}
+
+/** {pase, exp} para la persona, o null si las claves no están cargadas. */
+function pase_(u, mods) {
+  const priv = prop_('PASE_PRIV', false);
+  if (!priv) return null;
+  const exp = Date.now() + PASE_H * 3600000;
+  const sesion = sesionFirmada_(u.legajo, exp);
+  if (!sesion) return null;
+  const roles = {};
+  mods.forEach(m => { roles[m.codigo] = m.rol || 'USUARIO'; });
+  const cuerpo = b64u_(JSON.stringify({
+    v: 1, l: u.legajo, n: u.nombre_visible, e: u.email, s: u.sector,
+    a: tienePermiso_(u.legajo, 'ADMIN'), r: roles, x: exp, ss: sesion
+  }));
+  return { pase: cuerpo + '.' + b64uBytes_(Utilities.computeRsaSha256Signature(cuerpo, priv)), exp };
+}
+
+/** Un ticket de un solo uso por cada módulo que se abre con URL, todos en una sola escritura a la caché. */
+function ticketsPara_(u, mods) {
+  const tickets = {}, lote = {};
+  mods.forEach(m => {
+    const url = String(m.url || '');
+    if (!url || url.charAt(0) === '#' || m.tipo === 'interno') return;
+    const t = generarToken_();
+    tickets[m.codigo] = t;
+    lote['tk:' + t] = JSON.stringify({ legajo: u.legajo, modulo: m.codigo, creado: Date.now() });
+  });
+  if (Object.keys(lote).length) cache_().putAll(lote, TICKET_MIN * 60);
+  return tickets;
 }
 
 /** Contrato para módulos: POST {accion:"validar_token", token, modulo?} */
@@ -195,6 +268,17 @@ function identidadModulo_(u, modulo) {
 function validarSesionModulo_(payload) {
   const s = String(payload.sesion || '');
   if (!s) return { ok: false, error: 'Falta sesión' };
+  // Sesión que vino en un pase firmado: se verifica la firma, no hay nada guardado que buscar.
+  if (s.indexOf('u1.') === 0) {
+    const f = leerSesionFirmada_(s);
+    if (!f) return { ok: false, error: 'Sesión inválida. Abrí el sistema desde la app INGECO.' };
+    if (f.exp < Date.now()) return { ok: false, error: 'La sesión venció. Abrí el sistema desde la app INGECO.' };
+    const mod = payload.modulo ? String(payload.modulo).toUpperCase() : null;
+    const uf = leer_('USUARIOS').find(x => String(x.legajo) === String(f.legajo));
+    if (!uf || !si_(uf.activo)) return { ok: false, error: 'Usuario inactivo' };
+    if (mod && !tienePermiso_(uf.legajo, mod) && !tienePermiso_(uf.legajo, 'ADMIN')) return { ok: false, error: 'Sin permiso para ' + mod };
+    return identidadModulo_(uf, mod);
+  }
   // Cada sistema la valida al cargar: primero la caché (6 h), después la planilla.
   const enCache = cache_().get('ses:' + s);
   const fila = enCache ? JSON.parse(enCache) : buscar_('TICKETS', 'sesion', s);

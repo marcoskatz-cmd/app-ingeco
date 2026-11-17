@@ -244,8 +244,13 @@ async function procesarRetornoGoogle() {
 
 
 function guardarPerfil(r) {
-  S.perfil = { legajo: r.legajo, nombre_visible: r.nombre_visible, sector: r.sector, modulos: r.modulos || [], es_admin: !!r.es_admin, bot: r.bot || { habilitado: false } };
+  S.perfil = {
+    legajo: r.legajo, nombre_visible: r.nombre_visible, sector: r.sector, modulos: r.modulos || [], es_admin: !!r.es_admin, bot: r.bot || { habilitado: false },
+    pase: r.pase || '', pase_exp: r.pase_exp || 0
+  };
   localStorage.setItem('ingeco_perfil', JSON.stringify(S.perfil));
+  // El perfil trae un ticket listo por módulo: abrir cualquiera no espera al servidor.
+  if (r.tickets) { S.ticketsEnPerfil = true; Object.keys(r.tickets).forEach(c => { tkPool[c] = { tk: r.tickets[c], t: Date.now() }; }); }
   if (window.IngeBot) IngeBot.iniciar(S.perfil);
 }
 function cerrarSesionLocal() {
@@ -412,6 +417,22 @@ function urlConTicket(url, ticket) {
   try { const u = new URL(url, location.href); u.searchParams.set('tk', ticket); return u.toString(); }
   catch (e) { return url + (url.includes('?') ? '&' : '?') + 'tk=' + encodeURIComponent(ticket); }
 }
+// Pase firmado (17-nov-2026): la identidad de la persona firmada por el backend, que guard.js verifica en
+// el navegador sin consultar a nadie. Va al final del hash para que no quede en registros de servidores;
+// guard.js lo saca de la URL apenas carga. Solo para los sistemas estáticos (los que incluyen guard.js).
+const PASE_MARGEN_MS = 4 * 3600 * 1000;   // con menos de 4 h de vida no se usa: se espera el perfil nuevo
+function paseSirve(m) {
+  if (!S.perfil.pase || S.perfil.pase_exp - Date.now() < PASE_MARGEN_MS) return false;
+  try {
+    const h = new URL(m.url, location.href).hostname;
+    if (h === 'localhost' || h === '127.0.0.1') return true;
+    return h !== 'compras.ingecosa.com.ar' && (/\.ingecosa\.com\.ar$/.test(h) || /\.github\.io$/.test(h));
+  } catch (e) { return false; }
+}
+function urlConPase(url, pase) {
+  try { const u = new URL(url, location.href); u.hash = u.hash && u.hash !== '#' ? u.hash + '~ig=' + pase : 'ig=' + pase; return u.toString(); }
+  catch (e) { return url; }
+}
 // Tickets precargados para los sistemas más usados: abrirlos no espera los ~3 s del backend.
 // El backend los acepta 5 minutos; acá se usan hasta los 4.
 const TK_VIDA_MS = 4 * 60 * 1000;
@@ -424,7 +445,8 @@ function modulosFrecuentes() {
   return ((S.perfil && S.perfil.modulos) || []).filter(m => m.url && u[m.codigo]).sort((a, b) => u[b.codigo] - u[a.codigo]).slice(0, 3).map(m => m.codigo);
 }
 function precargarTickets() {
-  if (!S.token || document.visibilityState !== 'visible') return;
+  // Con el backend nuevo los tickets llegan dentro de `perfil` (cada 3 min): no hace falta pedirlos aparte.
+  if (!S.token || document.visibilityState !== 'visible' || S.ticketsEnPerfil) return;
   modulosFrecuentes().forEach(async cod => {
     const p = tkPool[cod];
     if (p && (p.pendiente || Date.now() - p.t < TK_VIDA_MS)) return;
@@ -433,11 +455,23 @@ function precargarTickets() {
     if (r.ok) tkPool[cod] = { tk: r.ticket, t: Date.now() }; else delete tkPool[cod];
   });
 }
+/** Ticket ya precargado y todavía vigente (se gasta al usarlo), o null. No espera al servidor. */
+function ticketListo(codigo) {
+  const p = tkPool[codigo];
+  if (!(p && p.tk && Date.now() - p.t < TK_VIDA_MS)) return null;
+  delete tkPool[codigo]; setTimeout(reponerTickets, 1500);
+  return p.tk;
+}
+/** Después de gastar un ticket, trae otra tanda para que la próxima apertura tampoco espere. */
+function reponerTickets() {
+  if (!S.ticketsEnPerfil) return precargarTickets();
+  if (!S.token || document.visibilityState !== 'visible') return;
+  api('perfil', {}, { silencioso: true }).then(p => { if (p.ok) guardarPerfil(p); });
+}
 /** Pide un ticket de un solo uso para abrir el módulo. Un link copiado no sirve fuera de la app. */
 async function ticketPara(codigo) {
-  contarUso(codigo);
-  const p = tkPool[codigo];
-  if (p && p.tk && Date.now() - p.t < TK_VIDA_MS) { delete tkPool[codigo]; setTimeout(precargarTickets, 1000); return p.tk; }
+  const listo = ticketListo(codigo);
+  if (listo) return listo;
   const r = await api('ticket', { modulo: codigo });
   if (!r.ok) { toast(r.error || 'No se pudo abrir', 'mal'); return null; }
   return r.ticket;
@@ -447,8 +481,13 @@ async function abrirModulo(codigo, extra) {
   const m = S.perfil.modulos.find(x => x.codigo === codigo);
   if (!m) { toast('No tenés acceso a ese módulo. Pedíselo a Marcos.', 'mal'); return irA('#inicio'); }
   if (!m.url) { toast('Ese módulo todavía no está conectado.', 'mal'); return irA('#inicio'); }
-  const tk = await ticketPara(m.codigo); if (!tk) return irA('#inicio');
-  const urlConToken = u => urlConTicket(conExtra(u, extra), tk);
+  contarUso(m.codigo);
+  // Con pase firmado el sistema abre sin esperar al servidor. El ticket precargado, si hay, va también
+  // (lo usan Compras, Ropa y cualquier sistema que todavía tenga el guard.js anterior).
+  const pase = paseSirve(m) ? S.perfil.pase : '';
+  let tk = ticketListo(m.codigo);
+  if (!tk && !pase) { tk = await ticketPara(m.codigo); if (!tk) return irA('#inicio'); }
+  const urlConToken = u => { let x = conExtra(u, extra); if (tk) x = urlConTicket(x, tk); return pase ? urlConPase(x, pase) : x; };
   // Las web apps de Apps Script no se dejan embeber cuando el usuario está logueado en Workspace
   // (Google las redirige a /a/macros/<dominio>/ con X-Frame-Options SAMEORIGIN): siempre pestaña completa.
   if (m.tipo === 'link' || /script\.google\.com/.test(m.url)) {
