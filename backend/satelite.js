@@ -63,12 +63,20 @@ function espejarHoja_(p, confirmar) {
   var ss = SpreadsheetApp.openById(p.idGoogle);
   var sh = ss.getSheetByName(p.hoja) || ss.insertSheet(p.hoja);
   if (filas.length && ancho) {
+    // Hay planillas que no devuelven la misma fecha que se les escribe (ver corregirFechas_). Si ya se sabe que
+    // esta es una de esas, las fechas se escriben corridas de entrada para que nunca se vean mal.
+    var props = PropertiesService.getScriptProperties(), claveModo = 'ESPEJO_FECHAS:' + p.idGoogle;
+    var tz = ss.getSpreadsheetTimeZone(), previsto = props.getProperty(claveModo) === 'utc';
     var datos = filas.map(function (f) {
       var fila = [];
-      for (var j = 0; j < ancho; j++) fila.push(celdaGoogle_(f[j]));
+      for (var j = 0; j < ancho; j++) fila.push(celdaGoogle_(f[j], previsto ? tz : ''));
       return fila;
     });
-    sh.getRange(1, 1, datos.length, ancho).setValues(datos);
+    var rg = sh.getRange(1, 1, datos.length, ancho);
+    rg.setValues(datos);
+    var c = corregirFechas_(rg, filas, datos, tz);
+    if (c.relojUniversal && !previsto) props.setProperty(claveModo, 'utc');
+    if (previsto && c.corregidas) props.deleteProperty(claveModo);
   }
   // Lo que sobra respecto de la plataforma se vacía (no se borran filas ni columnas: se conserva el formato).
   var ultFila = sh.getLastRow(), ultCol = sh.getLastColumn();
@@ -79,15 +87,63 @@ function espejarHoja_(p, confirmar) {
 }
 
 /** Celda de la plataforma → valor para Sheets. Los textos que Sheets convertiría solo se fuerzan a texto. */
-function celdaGoogle_(c) {
+function celdaGoogle_(c, zonaReloj) {
   if (c === null || c === undefined) return '';
   if (typeof c === 'object') {
-    if (c.d) return new Date(c.d);
+    if (c.d) return zonaReloj ? fechaReloj_(c.d, zonaReloj) : new Date(c.d);
     if (c.fx) return c.fx;
     return '';
   }
   if (typeof c === 'string' && c !== '' && /^\s*([+-]?\d+([.,]\d+)?|\d{4}-\d{1,2}-\d{1,2}([T ]\d{1,2}:\d{2}(:\d{2})?)?|\d{1,2}\/\d{1,2}\/\d{4}.*|true|false|=.*|'.*)\s*$/i.test(c)) return "'" + c;
   return c;
+}
+
+/**
+ * La regla del espejo para las fechas: lo que Apps Script LEE de la planilla tiene que ser exactamente la fecha
+ * que guarda la plataforma (así, quien lee la planilla ve lo mismo que veía antes de la migración). Sheets no
+ * siempre devuelve lo que se le escribió: en algunas planillas con zona horaria ajena (STOCK ASFALTO está en hora
+ * de Los Ángeles) escribe con la zona de la planilla y al leer devuelve la hora de reloj como si fuera universal.
+ * Por eso no se confía: se relee y, donde difiere, se reescribe corrido lo que haga falta. Falla si no converge.
+ * Devuelve cuántas celdas corrigió y si la planilla se comporta como "de reloj universal".
+ */
+function corregirFechas_(rg, filas, datos, tz) {
+  var hay = false, i, j;
+  for (i = 0; i < filas.length && !hay; i++) for (j = 0; j < filas[i].length; j++) if (esFecha_(filas[i][j])) { hay = true; break; }
+  if (!hay) return { corregidas: 0, relojUniversal: false };
+  var total = 0, universal = false;
+  for (var vuelta = 0; vuelta < 4; vuelta++) {
+    SpreadsheetApp.flush();
+    var leido = rg.getValues(), mal = 0, modelo = true;
+    for (i = 0; i < filas.length; i++) for (j = 0; j < filas[i].length; j++) {
+      if (!esFecha_(filas[i][j])) continue;
+      var quiero = new Date(filas[i][j].d).getTime(), v = leido[i][j];
+      if (!(v instanceof Date) || isNaN(v.getTime())) continue;      // columna de texto: no hay nada que correr
+      var veo = v.getTime();
+      if (Math.abs(veo - quiero) < 2) continue;
+      if (vuelta === 0 && Math.abs(veo - (datos[i][j].getTime() + desfaseZona_(tz, datos[i][j].getTime()))) >= 2) modelo = false;
+      datos[i][j] = new Date(datos[i][j].getTime() + (quiero - veo));
+      mal++;
+    }
+    if (!mal) return { corregidas: total, relojUniversal: universal };
+    if (vuelta === 0) universal = modelo;
+    total += mal;
+    rg.setValues(datos);
+  }
+  throw new Error('las fechas no quedan iguales a las de la plataforma');
+}
+
+function esFecha_(c) { return !!c && typeof c === 'object' && !!c.d; }
+
+/** Diferencia, en milisegundos, entre la hora de reloj de una zona y la hora universal en un instante dado. */
+function desfaseZona_(tz, t) {
+  var p = Utilities.formatDate(new Date(t), tz, 'yyyy-M-d-H-m-s').split('-');
+  return Date.UTC(+p[0], p[1] - 1, +p[2], +p[3], +p[4], +p[5]) - Math.floor(t / 1000) * 1000;
+}
+
+/** La fecha que hay que escribir para que una planilla "de reloj universal" devuelva exactamente el instante pedido. */
+function fechaReloj_(iso, tz) {
+  var x = new Date(iso).getTime(), w = x - desfaseZona_(tz, x);
+  return new Date(x - desfaseZona_(tz, w));
 }
 
 /**
